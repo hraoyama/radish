@@ -30,8 +30,8 @@ class DataUploader:
                is_overwrite: bool = True,
                arctic_source_name: str = 'feeds',
                arctic_host: str = 'localhost'):
-        arctic = Arctic(arctic_host)
         
+        arctic = Arctic(arctic_host)
         if arctic_source_name not in arctic.list_libraries():
             arctic.initialize_library(arctic_source_name, lib_type=CHUNK_STORE)
         
@@ -99,9 +99,10 @@ class HistoricalDataFetcher:
                        self.fetch(symbol=x, fields=field_columns, start_time=start_time, end_time=end_time,
                                   add_symbol=add_symbol),
                        symbols_in_arctic))
-        dfAll = functools.reduce(lambda df1, df2: pd.merge(df1, df2, how='outer'), dfs)
+        dfAll = functools.reduce(lambda df1, df2: pd.merge(df1, df2, how='outer', left_index=True, right_index=True),
+                                 dfs)
         dfAll.sort_index(inplace=True)
-        return dfAll;
+        return symbols_in_arctic, dfAll
     
     def fetch(self,
               symbol: str,
@@ -138,7 +139,7 @@ class HistoricalDataFetcher:
                 logging.error(str(ndf))
                 return None
             
-            self.redis.set(redis_key, df.to_msgpack(compress='blosc'))
+            self.redis.set(redis_key, df_result.to_msgpack(compress='blosc'))
             
             return df_result
     
@@ -158,14 +159,14 @@ class HistoricalDataFetcher:
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG, handlers=[logging.StreamHandler()])
     data_fetcher = HistoricalDataFetcher()
-    starting_time = datetime(2017, 5, 30)
+    starting_time = datetime(2017, 5, 31)
     ending_time = datetime(2017, 6, 5)
     list_of_patterns = HistoricalDataFetcher.generate_pattern_list(['EUX', 'MTA'],
                                                                    ['IT0001250932', 'LU0252634307', 'FDAX201709'],
                                                                    [HistoricalDataFetcher.DataType.ORDERBOOK])
-    df = data_fetcher.fetch_from_pattern_list(list_of_patterns, starting_time, ending_time, add_symbol=True)
+    (matched_symbols, df) = data_fetcher.fetch_from_pattern_list(list_of_patterns, starting_time, ending_time, add_symbol=True)
     print(df.shape)
-    DataUploader.upload(df, "_".join(list_of_patterns) +
+    DataUploader.upload(df, "_".join(matched_symbols) +
                         starting_time.strftime(HistoricalDataFetcher.DATE_FORMAT) + "." +
                         ending_time.strftime(HistoricalDataFetcher.DATE_FORMAT),
                         True)
