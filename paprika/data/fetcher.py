@@ -1,37 +1,115 @@
+from paprika.utils.time import millis_to_datetime
+
 from datetime import datetime
 from typing import List, Union
 
 import pandas as pd
 import redis
-import os, sys
-# from absl import logging
+import os
+import sys
 import logging
+import itertools
+import functools
+from enum import Enum
+import re
+
 from arctic import exceptions
 from arctic import Arctic
+from arctic import CHUNK_STORE
 from arctic.date import DateRange
 
 # lib_path = os.path.abspath(os.path.join(__file__, '..', '..', '..'))
 lib_path = os.getenv("RADISH_DIR")
 sys.path.append(lib_path)
 
-from paprika.utils.time import millis_to_datetime
-from paprika.utils.utils import forward_fill_to_ohlcv
 
+class DataUploader:
+    @staticmethod
+    def upload(data_frame: pd.DataFrame,
+               table_name: str,
+               is_overwrite: bool = True,
+               arctic_source_name: str = 'feeds',
+               arctic_host: str = 'localhost'):
+        arctic = Arctic(arctic_host)
+        
+        if arctic_source_name not in arctic.list_libraries():
+            arctic.initialize_library(arctic_source_name, lib_type=CHUNK_STORE)
+        
+        library = arctic[arctic_source_name]
+        
+        if not (table_name in library.list_symbols()):
+            library.write(table_name, data_frame)
+        elif is_overwrite:
+            library.update(table_name, data_frame)
+        else:
+            library.append(table_name, data_frame)
 
+        logging.info(f"Uploaded {table_name} to {arctic_source_name} on {arctic_host}")
+        
+        
 class HistoricalDataFetcher:
     DATETIME_FORMAT = "%Y%m%d%H%M%S"
+    DATE_FORMAT = "%Y%m%d"
     
-    def __init__(self, arctic_host='localhost', redis_host='localhost'):
+    class DataType(Enum):
+        ORDERBOOK = 1
+        TRADES = 2
+        
+        def __str__(self):
+            if self.name == "ORDERBOOK":
+                return 'OrderBook'
+            elif self.name == "TRADES":
+                return 'Trade'
+    
+    @staticmethod
+    def generate_pattern_list(exchanges: List[str] = None,
+                              instruments: List[str] = None,
+                              data_types: List[DataType] = None) -> List:
+        
+        exchanges = ["^.*"] if exchanges is None else list(map(lambda x: ".*" + x.upper().strip() + ".*", exchanges))
+        instruments = [".*"] if instruments is None else list(
+            map(lambda x: ".*" + x.upper().strip() + ".*", instruments))
+        data_types = [str(HistoricalDataFetcher.DataType.ORDERBOOK) + "$"] if data_types is None else list(
+            map(lambda x: str(x) + "$", data_types))
+        
+        return list(map(lambda tup: ".".join(tup), itertools.product(exchanges, instruments, data_types)))
+    
+    def __init__(self,
+                 arctic_source_name='mdb',
+                 arctic_host='localhost',
+                 redis_host='localhost'):
         self.arctic = Arctic(arctic_host)
         self.redis = redis.Redis(redis_host)
+        if arctic_source_name not in self.arctic.list_libraries():
+            self.arctic.initialize_library(arctic_source_name, lib_type=CHUNK_STORE)
+        self.library = self.arctic[arctic_source_name]
+        self.available_feeds = self.library.list_symbols()
     
-    def fetch_ohlcv(self,
-                    source: str,
-                    symbol: str,
-                    frequency: str,
-                    fields: List[str] = None,
-                    start_time: Union[int, datetime] = None,
-                    end_time: Union[int, datetime] = None):
+    def fetch_from_pattern_list(self,
+                                pattern_list: List[str],
+                                start_time: Union[int, datetime],
+                                end_time: Union[int, datetime],
+                                add_symbol: bool = True,
+                                field_columns: List[str] = None):
+        
+        pattern_list = list(map(re.compile, pattern_list))
+        symbols_in_arctic = [symbol_match for symbol_match in self.available_feeds for plist in pattern_list if
+                             plist.match(symbol_match)]
+        dfs = list(map(lambda x:
+                       self.fetch(symbol=x, fields=field_columns, start_time=start_time, end_time=end_time,
+                                  add_symbol=add_symbol),
+                       symbols_in_arctic))
+        dfAll = functools.reduce(lambda df1, df2: pd.merge(df1, df2, how='outer'), dfs)
+        dfAll.sort_index(inplace=True)
+        return dfAll;
+    
+    def fetch(self,
+              symbol: str,
+              start_time: Union[int, datetime],
+              end_time: Union[int, datetime],
+              add_symbol: bool = True,
+              fields: List[str] = None):
+        
         if fields is None:
             fields = []
         if start_time is int:
@@ -39,69 +117,9 @@ class HistoricalDataFetcher:
         if end_time is int:
             end_time = millis_to_datetime(end_time)
         
-        # source = f'{source}_ohlcv'
-        source = f'{source}'
-        # symbol = f'{symbol}_{frequency}'
-        symbol = f'{symbol}.Trade'
-        
-        # key = (source, symbol, frequency, tuple(fields), start_time, end_time)
-        key = f'{symbol}.{frequency}.{start_time}.{end_time}'
-        msg = self.redis.get(key)
-        
-        if msg:
-            logging.debug('Load Redis cache for %s', key)
-            return pd.read_msgpack(msg)
-        else:
-            logging.debug(
-                'Cache not existent for %s. Read from external source.', key)
-            
-            library = self.arctic[source]
-            
-            df = library.read(
-                symbol=symbol, chunk_range=DateRange(start_time, end_time))
-            
-            df = forward_fill_to_ohlcv(df, end_time, frequency)
-            if fields:
-                df = df[fields]
-            
-            self.redis.set(key, df.to_msgpack(compress='blosc'))
-            
-            return df
-    
-    def load_markets(self,
-                     source: str):
-        # TODO: Use Orderbook for Limit
-        library = self.arctic[source]
-        symbols = [symbol[0:-6] for symbol in library.list_symbols() if symbol.find('Trade') >= 0]
-        markets = {}
-        for symbol in symbols:
-            quote = 'USD'
-            base = symbol
-            markets[symbol] = {'base': base, 'quote': quote,
-                               'symbol': symbol, 'limits': {'amount': {}}}
-        
-        return markets
-    
-    def get_meta_data(self, source: str):
-        library = self.arctic[source]
-        return dict(zip(library.list_symbols(), [library.read_metadata(symbol) for symbol in library.list_symbols()]))
-    
-    def fetch_orderbook(self,
-                        source: str,
-                        symbol: str,
-                        fields: List[str] = None,
-                        start_time: Union[int, datetime] = None,
-                        end_time: Union[int, datetime] = None):
-        if fields is None:
-            fields = []
-        if start_time is int:
-            start_time = millis_to_datetime(start_time)
-        if end_time is int:
-            end_time = millis_to_datetime(end_time)
-        
-        key = f'{symbol}.OrderBook'  # .{start_time}.{end_time}
+        key = symbol
         redis_key = key + \
-                    f".{start_time.strftime(HistoricalDataFetcher.DATETIME_FORMAT)}.{end_time.strftime(HistoricalDataFetcher.DATETIME_FORMAT)}." + \
+                    f".{start_time.strftime(self.DATETIME_FORMAT)}.{end_time.strftime(self.DATETIME_FORMAT)}." + \
                     ".".join(map(str, fields))
         msg = self.redis.get(redis_key)
         
@@ -110,35 +128,48 @@ class HistoricalDataFetcher:
             return pd.read_msgpack(msg)
         else:
             logging.debug(f'Cache not existent for {redis_key}. Read from external source.')
-            library = self.arctic[source]
             
-            df = None
+            df_result = None
             try:
-                df = library.read(symbol=key, chunk_range=DateRange(start_time, end_time), columns=fields)
+                df_result = self.library.read(symbol=key, chunk_range=DateRange(start_time, end_time), columns=fields)
+                if add_symbol:
+                    df_result['Symbol'] = symbol
             except exceptions.NoDataFoundException as ndf:
                 logging.error(str(ndf))
                 return None
             
-            from paprika.data.marketdata import ORDERBOOK_COLUMN_INDICES
-            df = df[ORDERBOOK_COLUMN_INDICES.keys()]
-            
-            # if fields:
-            #     if all([field in df.columns.values for field in fields]):
-            #         df = df[fields]
-            
             self.redis.set(redis_key, df.to_msgpack(compress='blosc'))
             
-            return df
+            return df_result
+    
+    def get_meta_data(self):
+        return dict(zip(self.library.list_symbols(),
+                        [self.library.read_metadata(symbol) for symbol in self.library.list_symbols()]))
+    
+    def fetch_orderbook(self,
+                        symbol: str,
+                        start_time: Union[int, datetime],
+                        end_time: Union[int, datetime],
+                        add_symbol: bool = True,
+                        fields: List[str] = None):
+        return self.fetch(f'{symbol}.OrderBook', start_time, end_time, add_symbol, fields)
 
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG, handlers=[logging.StreamHandler()])
     data_fetcher = HistoricalDataFetcher()
-    start_time = datetime(2017, 5, 1)
-    end_time = datetime(2017, 6, 10)
-    meta = data_fetcher.get_meta_data("mdb")
-    df = data_fetcher.fetch_orderbook('mdb', 'EUX.FDAX201709', start_time=start_time, end_time=end_time)
-    # df = data_fetcher.fetch_orderbook('mdb', 'ETF.LU0252634307')
-    # EUX.FDAX201709  # 20170531
-    # print(data_fetcher.fetch_ohlcv(request))
-    print(df)
+    starting_time = datetime(2017, 5, 30)
+    ending_time = datetime(2017, 6, 5)
+    list_of_patterns = HistoricalDataFetcher.generate_pattern_list(['EUX', 'MTA'],
+                                                                   ['IT0001250932', 'LU0252634307', 'FDAX201709'],
+                                                                   [HistoricalDataFetcher.DataType.ORDERBOOK])
+    df = data_fetcher.fetch_from_pattern_list(list_of_patterns, starting_time, ending_time, add_symbol=True)
+    print(df.shape)
+    DataUploader.upload(df, "_".join(list_of_patterns) +
+                        starting_time.strftime(HistoricalDataFetcher.DATE_FORMAT) + "." +
+                        ending_time.strftime(HistoricalDataFetcher.DATE_FORMAT),
+                        True)
+    df = data_fetcher.fetch('EUX.FDAX201709.OrderBook', start_time=starting_time, end_time=ending_time, add_symbol=True)
+    print(df.shape)
+    
+    
