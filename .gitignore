@@ -102,3 +102,9 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+.idea/workspace.xml
+.idea/modules.xml
+.idea/inspectionProfiles/Project_Default.xml
+.idea/vcs.xml
+.idea/radish.iml
+.idea/misc.xml
