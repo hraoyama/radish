@@ -19,9 +19,7 @@ from arctic import CHUNK_STORE
 from arctic.date import DateRange
 
 # lib_path = os.path.abspath(os.path.join(__file__, '..', '..', '..'))
-lib_path = os.getenv("RADISH_DIR")
-sys.path.append(lib_path)
-
+sys.path.append(os.getenv("RADISH_DIR"))
 
 class DataUploader:
     @staticmethod
@@ -166,11 +164,10 @@ if __name__ == '__main__':
                                                                    [HistoricalDataFetcher.DataType.ORDERBOOK])
     (matched_symbols, df) = data_fetcher.fetch_from_pattern_list(list_of_patterns, starting_time, ending_time, add_symbol=True)
     print(df.shape)
-    DataUploader.upload(df, "_".join(matched_symbols) +
+    DataUploader.upload(df, "_".join(matched_symbols) + "_" +
                         starting_time.strftime(HistoricalDataFetcher.DATE_FORMAT) + "." +
                         ending_time.strftime(HistoricalDataFetcher.DATE_FORMAT),
                         True)
     df = data_fetcher.fetch('EUX.FDAX201709.OrderBook', start_time=starting_time, end_time=ending_time, add_symbol=True)
     print(df.shape)
-    
-    
+

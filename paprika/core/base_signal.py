@@ -1,5 +1,7 @@
 from abc import ABC
-from paprika.core.feed_subscription import FeedSubscription
+
+from paprika.data.feed_subscription import FeedSubscription
+
 
 class BaseSignal(ABC):
     def __init__(self):
