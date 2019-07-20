@@ -1,3 +1,7 @@
+from paprika.data.fetcher import HistoricalDataFetcher
+from paprika.data.fetcher import DataUploader
+from paprika.data.feed_subscriber import FeedSubscriber
+from paprika.data.feed_filter import Filtration
 
 import os
 import sys
@@ -9,8 +13,6 @@ print(os.getenv("PAPRIKA_PATH"))
 sys.path.append(os.getenv("RADISH_PATH"))
 sys.path.append(os.getenv("RADISH_DIR"))
 
-from fetcher import HistoricalDataFetcher
-from fetcher import DataUploader
 
 class FeedSubscription:
     def __init__(self, name: str, start: datetime, end: datetime):
@@ -21,6 +23,7 @@ class FeedSubscription:
         self.name = name.upper().strip()
         self.feed_symbols = []
         self.fetcher = HistoricalDataFetcher()
+        self.subscribers_dispatch = {}
     
     def __str__(self):
         return_str = f'Feed {self.name} {self.start_datetime.strftime(HistoricalDataFetcher.DATETIME_FORMAT)} to '
@@ -37,7 +40,14 @@ class FeedSubscription:
         self.feed_symbols.extend(matched_symbols)
         self.feed_symbols = list(set(self.feed_symbols))
         pass
+    
+    def add_subscriber(self, feed_subscriber: FeedSubscriber):
+        self.subscribers_dispatch[feed_subscriber.uuid] = []
+        pass
 
+    def _get_subsribed_indices(self, filtration: Filtration):
+        pass
+    
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG, handlers=[logging.StreamHandler()])

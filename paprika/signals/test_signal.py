@@ -9,15 +9,18 @@ import sys, os
 
 
 from paprika.data.fetcher import HistoricalDataFetcher, DataUploader
+from paprika.data.feed_subscription import FeedSubscription
+from paprika.data.feed_filter import Filtration
 
-#
-#
-# class MovingAverageCross(Algorithm):
-#     def __init__(self):
-#         self.count = 0
-#
-#     def initialise(self):
-#         register_timer(self.handle_timer, frequency)
+# from paprika.core.algorithm import Algorithm
+
+
+class MovingAverageCross(Algorithm):
+    def __init__(self):
+        self.count = 0
+
+    def register_feed(feed: FeedSubscription, filter: Filtration):
+        pass
 #
 #     def handle_timer(self, event):
 #         portfolio = get_portfolio(source)
@@ -92,8 +95,8 @@ from paprika.data.fetcher import HistoricalDataFetcher, DataUploader
 #     sns.set()
 #     plt.show()
 #     pass
-#
-#
+
+
 # if __name__ == '__main__':
 #     app.run(main)
 #
