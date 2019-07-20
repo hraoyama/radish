@@ -7,7 +7,7 @@ sys.path.append(os.getenv("RADISH_PATH"))
 sys.path.append(os.getenv("RADISH_DIR"))
 
 from paprika.data.feed_filter import Filtration
-
+from paprika.data.feed_subscription import DataType
 
 class FeedSubscriber(object):
     def __init__(self):
@@ -21,9 +21,9 @@ class FeedSubscriber(object):
     def clear_filtration(self):
         self.filtrations = []
     
-    def handle_event(self, event: pd.DataFrame):
+    def handle_event(self, event: pd.DataFrame, data_type: DataType):
         self.call_count += 1
-        print(event.shape)
+        # print(event.shape)
         pass
     
     @property

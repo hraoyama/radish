@@ -8,7 +8,7 @@ import math
 import sys, os
 
 
-from paprika.data.fetcher import HistoricalDataFetcher, DataUploader
+from paprika.data.fetcher import HistoricalDataFetcher, DataChannel
 from paprika.data.feed_subscription import FeedSubscription
 from paprika.data.feed_filter import Filtration
 

@@ -21,7 +21,19 @@ from arctic.date import DateRange
 # lib_path = os.path.abspath(os.path.join(__file__, '..', '..', '..'))
 sys.path.append(os.getenv("RADISH_DIR"))
 
-class DataUploader:
+
+class DataType(Enum):
+    ORDERBOOK = 1
+    TRADES = 2
+    
+    def __str__(self):
+        if self.name == "ORDERBOOK":
+            return 'OrderBook'
+        elif self.name == "TRADES":
+            return 'Trade'
+
+
+class DataChannel:
     @staticmethod
     def upload(data_frame: pd.DataFrame,
                table_name: str,
@@ -41,23 +53,25 @@ class DataUploader:
             library.update(table_name, data_frame)
         else:
             library.append(table_name, data_frame)
-
+        
         logging.info(f"Uploaded {table_name} to {arctic_source_name} on {arctic_host}")
+    
+    @staticmethod
+    def download(table_name: str,
+                 arctic_source_name: str = 'feeds',
+                 arctic_host: str = 'localhost') -> pd.DataFrame:
         
+        arctic = Arctic(arctic_host)
+        assert arctic_source_name in arctic.list_libraries()
         
+        library = arctic[arctic_source_name]
+        logging.info(f"Read {table_name} inside {arctic_source_name} on {arctic_host}.")
+        return library.read(table_name)
+
+
 class HistoricalDataFetcher:
     DATETIME_FORMAT = "%Y%m%d%H%M%S"
     DATE_FORMAT = "%Y%m%d"
-    
-    class DataType(Enum):
-        ORDERBOOK = 1
-        TRADES = 2
-        
-        def __str__(self):
-            if self.name == "ORDERBOOK":
-                return 'OrderBook'
-            elif self.name == "TRADES":
-                return 'Trade'
     
     @staticmethod
     def generate_pattern_list(exchanges: List[str] = None,
@@ -67,11 +81,19 @@ class HistoricalDataFetcher:
         exchanges = ["^.*"] if exchanges is None else list(map(lambda x: ".*" + x.upper().strip() + ".*", exchanges))
         instruments = [".*"] if instruments is None else list(
             map(lambda x: ".*" + x.upper().strip() + ".*", instruments))
-        data_types = [str(HistoricalDataFetcher.DataType.ORDERBOOK) + "$"] if data_types is None else list(
+        data_types = [str(DataType.ORDERBOOK) + "$"] if data_types is None else list(
             map(lambda x: str(x) + "$", data_types))
         
         return list(map(lambda tup: ".".join(tup), itertools.product(exchanges, instruments, data_types)))
+
+    @staticmethod
+    def generate_simple_pattern_list(descs: List[str] = None, data_type: DataType = DataType.ORDERBOOK) -> List:
     
+        descs = ["^.*"] if descs is None else list(map(lambda x: ".*" + x.upper().strip() + ".*", descs))
+        data_type_pattern = [str(data_type) + "$"]
+    
+        return list(map(lambda tup: ".".join(tup), itertools.product(descs, data_type_pattern)))
+
     def __init__(self,
                  arctic_source_name='mdb',
                  arctic_host='localhost',
@@ -93,6 +115,7 @@ class HistoricalDataFetcher:
         pattern_list = list(map(re.compile, pattern_list))
         symbols_in_arctic = [symbol_match for symbol_match in self.available_feeds for plist in pattern_list if
                              plist.match(symbol_match)]
+        # TODO: split on Trades and orderbook and any other type... return list of Dfs
         dfs = list(map(lambda x:
                        self.fetch(symbol=x, fields=field_columns, start_time=start_time, end_time=end_time,
                                   add_symbol=add_symbol),
@@ -161,13 +184,14 @@ if __name__ == '__main__':
     ending_time = datetime(2017, 6, 5)
     list_of_patterns = HistoricalDataFetcher.generate_pattern_list(['EUX', 'MTA'],
                                                                    ['IT0001250932', 'LU0252634307', 'FDAX201709'],
-                                                                   [HistoricalDataFetcher.DataType.ORDERBOOK])
-    (matched_symbols, df) = data_fetcher.fetch_from_pattern_list(list_of_patterns, starting_time, ending_time, add_symbol=True)
+                                                                   [DataType.ORDERBOOK])
+    (matched_symbols, df) = data_fetcher.fetch_from_pattern_list(list_of_patterns, starting_time, ending_time,
+                                                                 add_symbol=True)
     print(df.shape)
-    DataUploader.upload(df, "_".join(matched_symbols) + "_" +
-                        starting_time.strftime(HistoricalDataFetcher.DATE_FORMAT) + "." +
-                        ending_time.strftime(HistoricalDataFetcher.DATE_FORMAT),
-                        True)
+    df.columns.values
+    DataChannel.upload(df, "_".join(matched_symbols) + "_" +
+                       starting_time.strftime(HistoricalDataFetcher.DATE_FORMAT) + "." +
+                       ending_time.strftime(HistoricalDataFetcher.DATE_FORMAT),
+                       True)
     df = data_fetcher.fetch('EUX.FDAX201709.OrderBook', start_time=starting_time, end_time=ending_time, add_symbol=True)
     print(df.shape)
-

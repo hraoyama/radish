@@ -1,5 +1,6 @@
 from paprika.data.fetcher import HistoricalDataFetcher
-from paprika.data.fetcher import DataUploader
+from paprika.data.fetcher import DataChannel
+from paprika.data.fetcher import DataType
 from paprika.data.feed_subscriber import FeedSubscriber
 from paprika.data.feed_filter import Filtration
 
@@ -7,6 +8,7 @@ import os
 import sys
 from datetime import datetime
 import logging
+import uuid
 
 print(os.getenv("RADISH_PATH"))
 print(os.getenv("PAPRIKA_PATH"))
@@ -24,6 +26,7 @@ class FeedSubscription:
         self.feed_symbols = []
         self.fetcher = HistoricalDataFetcher()
         self.subscribers_dispatch = {}
+        self.data_dictionary = {'OrderBook': {}, 'Trade': {}}
     
     def __str__(self):
         return_str = f'Feed {self.name} {self.start_datetime.strftime(HistoricalDataFetcher.DATETIME_FORMAT)} to '
@@ -31,21 +34,41 @@ class FeedSubscription:
         return_str = return_str + f'{str(self.feed_symbols)}'
         return return_str
     
-    def add_feed(self, list_of_patterns, append=True):
+    def add_feed(self, list_of_patterns, data_type: DataType, append=True):
+        # if isinstance(list_of_patterns,list);
         (matched_symbols, df) = self.fetcher.fetch_from_pattern_list(list_of_patterns,
                                                                      self.start_datetime,
                                                                      self.end_datetime,
                                                                      add_symbol=True)
-        DataUploader.upload(df, self.name, is_overwrite=~append)
+        # TODO: upload based on returned type
+        uploaded_name = self.name + "_OrderBook_" + uuid.uuid4().hex if self.data_dictionary['OrderBook'] else \
+                        self.data_dictionary['OrderBook'].keys()[0]
+        
+        DataChannel.upload(df, uploaded_name, is_overwrite=~append)
         self.feed_symbols.extend(matched_symbols)
         self.feed_symbols = list(set(self.feed_symbols))
+        
+        # TODO: implement based on returned type
+        # necessary to download in case of append
+        if append:
+            self.data_dictionary['OrderBook'][uploaded_name] = DataChannel.download(uploaded_name)
+        
         pass
     
     def add_subscriber(self, feed_subscriber: FeedSubscriber):
-        self.subscribers_dispatch[feed_subscriber.uuid] = []
+        
+        assert self.data_dictionary['OrderBook']
+        
+        self.subscribers_dispatch[feed_subscriber.uuid] = [] # will set the indices to subscribe to for this subscriber
         pass
 
     def _get_subsribed_indices(self, filtration: Filtration):
+        
+        for local_filter in filtration.filters:
+            local_filter
+            
+            
+        
         pass
     
 

@@ -3,6 +3,7 @@ import sys
 from datetime import datetime
 import logging
 from abc import ABC
+import pandas as pd
 
 print(os.getenv("RADISH_PATH"))
 print(os.getenv("PAPRIKA_PATH"))
@@ -11,7 +12,7 @@ from enum import Enum
 
 
 # from fetcher import HistoricalDataFetcher
-# from fetcher import DataUploader
+# from fetcher import DataChannel
 
 
 class FilterType(Enum):
@@ -32,6 +33,9 @@ class Filtration(object):
     
     def __str__(self):
         return '\n'.join([str(f) for f in self.filters])
+    
+    def accept(self, external_data):
+        pass
 
 
 class FreqFilter(FilterInterface):
@@ -43,6 +47,11 @@ class FreqFilter(FilterInterface):
     def __str__(self):
         type_of_length = "NoneType" if self.length is None else str(type(self.length))
         return " ".join([str(type(self.period)), str(self.period), type_of_length, str(self.length)])
+
+    def accept(self, external_data: pd.DataFrame):
+        
+        
+        pass
 
 
 class TimePeriod(Enum):
