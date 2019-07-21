@@ -27,10 +27,12 @@ class DataType(Enum):
     TRADES = 2
     
     def __str__(self):
-        if self.name == "ORDERBOOK":
+        if self.value == 1:
             return 'OrderBook'
-        elif self.name == "TRADES":
+        elif self.value == 2:
             return 'Trade'
+        else:
+            return self.name
 
 
 class DataChannel:
@@ -55,11 +57,12 @@ class DataChannel:
             library.append(table_name, data_frame)
         
         logging.info(f"Uploaded {table_name} to {arctic_source_name} on {arctic_host}")
+        return arctic_host, arctic_source_name, table_name
     
     @staticmethod
     def download(table_name: str,
                  arctic_source_name: str = 'feeds',
-                 arctic_host: str = 'localhost') -> pd.DataFrame:
+                 arctic_host: str = 'localhost'):
         
         arctic = Arctic(arctic_host)
         assert arctic_source_name in arctic.list_libraries()
@@ -67,6 +70,20 @@ class DataChannel:
         library = arctic[arctic_source_name]
         logging.info(f"Read {table_name} inside {arctic_source_name} on {arctic_host}.")
         return library.read(table_name)
+    
+    @staticmethod
+    def delete_table(table_name: str, arctic_source_name: str = 'feeds', arctic_host: str = 'localhost'):
+        arctic = Arctic(arctic_host)
+        assert arctic_source_name in arctic.list_libraries()
+        library = arctic[arctic_source_name]
+        return library.delete(table_name)
+    
+    @staticmethod
+    def table_names(arctic_source_name: str = 'feeds', arctic_host: str = 'localhost'):
+        arctic = Arctic(arctic_host)
+        assert arctic_source_name in arctic.list_libraries()
+        library = arctic[arctic_source_name]
+        return library.list_symbols()
 
 
 class HistoricalDataFetcher:
@@ -85,15 +102,13 @@ class HistoricalDataFetcher:
             map(lambda x: str(x) + "$", data_types))
         
         return list(map(lambda tup: ".".join(tup), itertools.product(exchanges, instruments, data_types)))
-
+    
     @staticmethod
     def generate_simple_pattern_list(descs: List[str] = None, data_type: DataType = DataType.ORDERBOOK) -> List:
-    
         descs = ["^.*"] if descs is None else list(map(lambda x: ".*" + x.upper().strip() + ".*", descs))
         data_type_pattern = [str(data_type) + "$"]
-    
         return list(map(lambda tup: ".".join(tup), itertools.product(descs, data_type_pattern)))
-
+    
     def __init__(self,
                  arctic_source_name='mdb',
                  arctic_host='localhost',
@@ -115,14 +130,16 @@ class HistoricalDataFetcher:
         pattern_list = list(map(re.compile, pattern_list))
         symbols_in_arctic = [symbol_match for symbol_match in self.available_feeds for plist in pattern_list if
                              plist.match(symbol_match)]
-        # TODO: split on Trades and orderbook and any other type... return list of Dfs
+        if not symbols_in_arctic:
+            return symbols_in_arctic, None
+        
         dfs = list(map(lambda x:
                        self.fetch(symbol=x, fields=field_columns, start_time=start_time, end_time=end_time,
                                   add_symbol=add_symbol),
                        symbols_in_arctic))
-        dfAll = functools.reduce(lambda df1, df2: pd.merge(df1, df2, how='outer', left_index=True, right_index=True),
-                                 dfs)
-        dfAll.sort_index(inplace=True)
+        dfAll = functools.reduce(lambda df1, df2: pd.concat([df1, df2], ignore_index=False, sort=True), dfs)
+        # dfAll = functools.reduce(lambda df1, df2: pd.merge(df1, df2, how='outer', left_index=True, right_index=True),dfs)
+        # dfAll.sort_index(inplace=True)
         return symbols_in_arctic, dfAll
     
     def fetch(self,
@@ -182,16 +199,17 @@ if __name__ == '__main__':
     data_fetcher = HistoricalDataFetcher()
     starting_time = datetime(2017, 5, 31)
     ending_time = datetime(2017, 6, 5)
-    list_of_patterns = HistoricalDataFetcher.generate_pattern_list(['EUX', 'MTA'],
-                                                                   ['IT0001250932', 'LU0252634307', 'FDAX201709'],
-                                                                   [DataType.ORDERBOOK])
+    list_of_patterns = HistoricalDataFetcher.generate_simple_pattern_list(['EUX.FDAX201709', 'MTA.IT0001250932'],
+                                                                          DataType.ORDERBOOK)
     (matched_symbols, df) = data_fetcher.fetch_from_pattern_list(list_of_patterns, starting_time, ending_time,
                                                                  add_symbol=True)
     print(df.shape)
-    df.columns.values
-    DataChannel.upload(df, "_".join(matched_symbols) + "_" +
-                       starting_time.strftime(HistoricalDataFetcher.DATE_FORMAT) + "." +
-                       ending_time.strftime(HistoricalDataFetcher.DATE_FORMAT),
-                       True)
+    arctic_host, arctic_db, arctic_table_name = DataChannel.upload(df, "_".join(matched_symbols) + "_" +
+                                                                   starting_time.strftime(
+                                                                       HistoricalDataFetcher.DATE_FORMAT) + "." +
+                                                                   ending_time.strftime(
+                                                                       HistoricalDataFetcher.DATE_FORMAT),
+                                                                   True)
     df = data_fetcher.fetch('EUX.FDAX201709.OrderBook', start_time=starting_time, end_time=ending_time, add_symbol=True)
     print(df.shape)
+    DataChannel.delete_table(arctic_table_name)
