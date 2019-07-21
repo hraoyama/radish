@@ -9,6 +9,7 @@ import sys
 from datetime import datetime
 import logging
 import uuid
+import functools
 
 print(os.getenv("RADISH_PATH"))
 print(os.getenv("PAPRIKA_PATH"))
@@ -25,8 +26,14 @@ class FeedSubscription:
         self.name = name.upper().strip()
         self.feed_symbols = []
         self.fetcher = HistoricalDataFetcher()
-        self.subscribers_dispatch = {}
-        self.data_dictionary = {'OrderBook': {}, 'Trade': {}}
+        
+        self.subscribers_dispatch = dict()
+        self.subscribers_dispatch[DataType.ORDERBOOK] = {}
+        self.subscribers_dispatch[DataType.TRADES] = {}
+
+        self.data_dictionary = dict()
+        self.data_dictionary[DataType.ORDERBOOK] = {}
+        self.data_dictionary[DataType.TRADES] = {}
     
     def __str__(self):
         return_str = f'Feed {self.name} {self.start_datetime.strftime(HistoricalDataFetcher.DATETIME_FORMAT)} to '
@@ -35,42 +42,64 @@ class FeedSubscription:
         return return_str
     
     def add_feed(self, list_of_patterns, data_type: DataType, append=True):
-        # if isinstance(list_of_patterns,list);
-        (matched_symbols, df) = self.fetcher.fetch_from_pattern_list(list_of_patterns,
-                                                                     self.start_datetime,
-                                                                     self.end_datetime,
-                                                                     add_symbol=True)
-        # TODO: upload based on returned type
-        uploaded_name = self.name + "_OrderBook_" + uuid.uuid4().hex if self.data_dictionary['OrderBook'] else \
-                        self.data_dictionary['OrderBook'].keys()[0]
+        
+        assert data_type in self.data_dictionary.keys()
+        
+        (matched_symbols, df) = self.fetcher.fetch_from_pattern_list(
+            self.fetcher.generate_simple_pattern_list(list_of_patterns, data_type),
+            self.start_datetime,
+            self.end_datetime,
+            add_symbol=True)
+        
+        uploaded_name = self.name + "_" + str(data_type) + "_" + uuid.uuid4().hex if not self.data_dictionary[
+            data_type] else self.data_dictionary[data_type].keys()[0]
         
         DataChannel.upload(df, uploaded_name, is_overwrite=~append)
         self.feed_symbols.extend(matched_symbols)
         self.feed_symbols = list(set(self.feed_symbols))
         
-        # TODO: implement based on returned type
         # necessary to download in case of append
         if append:
-            self.data_dictionary['OrderBook'][uploaded_name] = DataChannel.download(uploaded_name)
+            self.data_dictionary[data_type][uploaded_name] = DataChannel.download(uploaded_name)
         
         pass
     
     def add_subscriber(self, feed_subscriber: FeedSubscriber):
         
-        assert self.data_dictionary['OrderBook']
+        # maybe one should leave it up to the subscriber what they want to subscribe to?
+        if not feed_subscriber.data_types:
+            for data_type_str in self.data_dictionary.keys():
+                feed_subscriber.add_data_type(DataType[data_type_str])
         
-        self.subscribers_dispatch[feed_subscriber.uuid] = [] # will set the indices to subscribe to for this subscriber
-        pass
-
-    def _get_subsribed_indices(self, filtration: Filtration):
+        assert any(map(lambda x: x in self.data_dictionary.keys(), feed_subscriber.data_types))
         
-        for local_filter in filtration.filters:
-            local_filter
-            
-            
-        
-        pass
+        for data_type in feed_subscriber.data_types:
+            if self.data_dictionary[data_type]:
+                for filter_spec in feed_subscriber.filtrations:
+                    for subscribed_index_set in self._get_subscribed_indices(filter_spec):
+                        self.subscribers_dispatch[subscribed_index_set[0]][subscribed_index_set[1]] = [
+                            subscribed_index_set[3]]
     
+    def remove_subscriber(self, feed_subscriber: FeedSubscriber):
+        unsubscribed_data_types = []
+        for data_type in self.subscribers_dispatch.keys():
+            if feed_subscriber.uuid in self.subscribers_dispatch[data_type]:
+                self.subscribers_dispatch.pop(feed_subscriber.uuid)
+                unsubscribed_data_types.append(data_type)
+        return unsubscribed_data_types
+    
+    def clear_subscribers(self):
+        self.subscribers_dispatch = {}
+    
+    def _get_subscribed_indices(self, filtration: Filtration):
+        subscribed_indices = []
+        for data_type, data_dict in enumerate(self.data_dictionary):
+            for uploaded_name, data in enumerate(data_dict):
+                filtered_indices = sorted(list(functools.reduce(lambda x1, x2: set(x1).union(set(x2)),
+                                                                filtration.apply(data))))
+                subscribed_indices.append((data_type, uploaded_name, filtered_indices))
+        return subscribed_indices
+
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG, handlers=[logging.StreamHandler()])
