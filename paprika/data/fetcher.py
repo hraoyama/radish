@@ -84,6 +84,17 @@ class DataChannel:
         assert arctic_source_name in arctic.list_libraries()
         library = arctic[arctic_source_name]
         return library.list_symbols()
+    
+    @staticmethod
+    def clear_all_feeds(arctic_source_name: str = 'feeds', arctic_host: str = 'localhost'):
+        # just to be safe...
+        assert arctic_source_name == 'feeds'
+        assert arctic_host == 'localhost'
+        arctic = Arctic(arctic_host)
+        assert arctic_source_name in arctic.list_libraries()
+        library = arctic[arctic_source_name]
+        for table_name in library.list_symbols():
+            library.delete(table_name)
 
 
 class HistoricalDataFetcher:

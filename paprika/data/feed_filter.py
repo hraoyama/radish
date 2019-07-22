@@ -85,7 +85,7 @@ class TimeFreqFilter(FreqFilter):
         used_starting = self.starting if self.starting is not None else df.index[0]
         used_range = pd.date_range(used_starting, df.index[-1].to_pydatetime(),
                                    freq=f'{self.length}{self.period.value}')
-        return [df.index.asof(x) for x in used_range]
+        return sorted(list(set([df.index.asof(x) for x in used_range])))
         pass
 
 

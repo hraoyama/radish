@@ -18,6 +18,7 @@ class FeedSubscriber(object):
         self.filtrations = []
         self.data_types = []
         self.call_count = 0
+        self._subscribed_feed = None
     
     def add_data_type(self, data_type: DataType):
         if data_type not in self.data_types:
@@ -37,6 +38,25 @@ class FeedSubscriber(object):
         self.call_count += 1
         # print(event.shape)
         pass
+    
+    def run(self):
+        self.subscribed_feed.run(self)
+    
+    @property
+    def subscribed_feed(self):
+        return self._subscribed_feed
+    
+    @subscribed_feed.setter
+    def subscribed_feed(self, value):
+        from paprika.data.feed_subscription import FeedSubscription
+        assert isinstance(value, FeedSubscription)
+        self._subscribed_feed = value
+    
+    # TODO: add clear subscription
+    # def clear_subscription(self):
+    #     if self._subscribed_feed is not None:
+    #         _subscribed_feed.clear
+    
     
     @property
     def uuid(self):
