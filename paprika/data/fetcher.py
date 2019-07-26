@@ -204,23 +204,3 @@ class HistoricalDataFetcher:
                         fields: List[str] = None):
         return self.fetch(f'{symbol}.OrderBook', start_time, end_time, add_symbol, fields)
 
-
-if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG, handlers=[logging.StreamHandler()])
-    data_fetcher = HistoricalDataFetcher()
-    starting_time = datetime(2017, 5, 31)
-    ending_time = datetime(2017, 6, 5)
-    list_of_patterns = HistoricalDataFetcher.generate_simple_pattern_list(['EUX.FDAX201709', 'MTA.IT0001250932'],
-                                                                          DataType.ORDERBOOK)
-    (matched_symbols, df) = data_fetcher.fetch_from_pattern_list(list_of_patterns, starting_time, ending_time,
-                                                                 add_symbol=True)
-    print(df.shape)
-    arctic_host, arctic_db, arctic_table_name = DataChannel.upload(df, "_".join(matched_symbols) + "_" +
-                                                                   starting_time.strftime(
-                                                                       HistoricalDataFetcher.DATE_FORMAT) + "." +
-                                                                   ending_time.strftime(
-                                                                       HistoricalDataFetcher.DATE_FORMAT),
-                                                                   True)
-    df = data_fetcher.fetch('EUX.FDAX201709.OrderBook', start_time=starting_time, end_time=ending_time, add_symbol=True)
-    print(df.shape)
-    DataChannel.delete_table(arctic_table_name)

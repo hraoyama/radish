@@ -10,8 +10,6 @@ import logging
 import uuid
 import functools
 
-print(os.getenv("RADISH_PATH"))
-print(os.getenv("PAPRIKA_PATH"))
 sys.path.append(os.getenv("RADISH_PATH"))
 sys.path.append(os.getenv("RADISH_DIR"))
 
@@ -35,14 +33,14 @@ class FeedSubscription:
         self.data_dictionary = dict()
         self.data_dictionary[DataType.ORDERBOOK] = None
         self.data_dictionary[DataType.TRADES] = None
-        
+    
     def __str__(self):
         return_str = f'Feed {self.name} {self.start_datetime.strftime(HistoricalDataFetcher.DATETIME_FORMAT)} to '
         return_str = return_str + f'{self.end_datetime.strftime(HistoricalDataFetcher.DATETIME_FORMAT)} with symbols: '
         return_str = return_str + f'{str(self.feed_symbols)}'
         return return_str
     
-    def add_feed(self, list_of_patterns, data_type: DataType, append=True):
+    def set_feed(self, list_of_patterns, data_type: DataType):
         
         assert data_type in self.data_dictionary.keys()
         
@@ -52,16 +50,20 @@ class FeedSubscription:
             self.end_datetime,
             add_symbol=True)
         
-        uploaded_name = self.name + "_" + str(data_type) + "_" + uuid.uuid4().hex if self.data_dictionary[
-            data_type] is None else self.data_dictionary[data_type].keys()[0]
+        uploaded_name = self.name + "_" + str(data_type) + "_" + uuid.uuid4().hex
         
-        DataChannel.upload(df, uploaded_name, is_overwrite=~append)
+        df = df.sort_index() # this is important when combining sources in the same data frame
+        
+        # it is possible that we have multiple duplicated indices at the MS level...
+        # do not remove them because in orderbook situations they can be valid
+        # df = df.loc[~df.index.duplicated(keep='first')]
+        
+        DataChannel.upload(df, uploaded_name, is_overwrite=True)
+        
         self.feed_symbols.extend(matched_symbols)
         self.feed_symbols = list(set(self.feed_symbols))
-        
         # necessary to download in case of append
-        if append:
-            self.data_dictionary[data_type] = DataChannel.download(uploaded_name)
+        self.data_dictionary[data_type] = DataChannel.download(uploaded_name)
         
         pass
     
@@ -69,25 +71,20 @@ class FeedSubscription:
         
         from paprika.data.feed_subscriber import FeedSubscriber
         assert isinstance(feed_subscriber, FeedSubscriber)
-        assert feed_subscriber.subscribed_feed is None
+        if feed_subscriber.subscribed_feed is not None:
+            feed_subscriber.clear_feed()
         
-        # maybe one should leave it up to the subscriber what they want to subscribe to?
-        if not feed_subscriber.data_types:
-            for data_type_str in self.data_dictionary.keys():
-                feed_subscriber.add_data_type(DataType[data_type_str])
-        
-        assert any(map(lambda x: x in self.data_dictionary.keys(), feed_subscriber.data_types))
+        if not feed_subscriber.subscribed_feed:
+            feed_subscriber.subscribed_feed = self
         
         subscribed = False
-        for data_type in feed_subscriber.data_types:
-            if self.data_dictionary[data_type]:
-                for filter_spec in feed_subscriber.filtrations:
-                    subscribed_indices = self._get_subscribed_indices(filter_spec)
-                    if subscribed_indices:
-                        subscribed = True
-                        for subscribed_index_set in subscribed_indices:
-                            self.subscribers_dispatch[subscribed_index_set[0]][subscribed_index_set[1]] = [
-                                subscribed_index_set[3]]
+        for filter_spec in feed_subscriber.filtrations:
+            subscribed_indices = self._get_subscribed_indices(filter_spec)
+            if subscribed_indices:
+                subscribed = True
+                for subscribed_index_set in subscribed_indices:
+                    self.subscribers_dispatch[subscribed_index_set[0]][feed_subscriber.uuid] = [
+                        subscribed_index_set[1]]
         if subscribed:
             feed_subscriber.subscribed_feed = self
     
@@ -107,37 +104,50 @@ class FeedSubscription:
         self.subscribers_dispatch = {}
     
     def _get_subscribed_indices(self, filtration: Filtration):
+        assert isinstance(filtration, Filtration)
+        # TODO: have a simple check for individual filter instead of filtration...
         subscribed_indices = []
-        for data_type, data_dict in enumerate(self.data_dictionary):
-            for uploaded_name, data in enumerate(data_dict):
+        for data_type, data_indices in self.data_dictionary.items():
+            if data_indices is not None:
+                # data_indices is None when this feed does not supply this data type
+                filtered_indices_from_multiple_filters = filtration.apply(data_indices)
                 filtered_indices = sorted(list(functools.reduce(lambda x1, x2: set(x1).union(set(x2)),
-                                                                filtration.apply(data))))
-                subscribed_indices.append((data_type, uploaded_name, filtered_indices))
+                                                                filtered_indices_from_multiple_filters))) if len(
+                    filtered_indices_from_multiple_filters) > 1 else filtered_indices_from_multiple_filters
+                subscribed_indices.append((data_type, filtered_indices))
+        
         return subscribed_indices
-
+    
     def run(self, feed_subscriber):
         from paprika.data.feed_subscriber import FeedSubscriber
         assert isinstance(feed_subscriber, FeedSubscriber)
         
-        # this seems like a slow implementation...
+        # TODO: this seems like a slow implementation...
         dispatched_indices = dict()
         sorted_indices = []
         for data_type in self.subscribers_dispatch.keys():
             if feed_subscriber.uuid in self.subscribers_dispatch[data_type]:
-                sorted_indices.extend(self.subscribers_dispatch[data_type][feed_subscriber.uuid])
-                for dt_index in self.subscribers_dispatch[data_type][feed_subscriber.uuid]:
-                    if dt_index in dispatched_indices:
-                        dispatched_indices[dt_index].append(data_type)
-                    else:
-                        dispatched_indices[dt_index] = [data_type]
-                        
+                for dt_index_list_of_lists_per_data_type in self.subscribers_dispatch[data_type][feed_subscriber.uuid]:
+                    for dt_index_list in dt_index_list_of_lists_per_data_type:
+                        sorted_indices.extend(dt_index_list)
+                        for dt_index in dt_index_list:
+                            if dt_index in dispatched_indices:
+                                dispatched_indices[dt_index].append(data_type)
+                            else:
+                                dispatched_indices[dt_index] = [data_type]
+        
         sorted_indices = sorted(sorted_indices)
         
         for index in sorted_indices:
             data_types = dispatched_indices[index]
-            data_frames = [ self.data_dictionary[data_type][index] for data_type in data_types]
-            feed_subscriber.handle_event(data_frames, data_types)
-        
+            data_frames = []
+            passed_data_types =[]
+            for data_type in data_types:
+                if index in self.data_dictionary[data_type].index:
+                    data_frames.append(self.data_dictionary[data_type].loc[index])
+                    passed_data_types.append(data_type)
+            feed_subscriber.handle_event(list(zip(passed_data_types, data_frames)))
+
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG, handlers=[logging.StreamHandler()])

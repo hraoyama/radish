@@ -2,7 +2,8 @@ import os
 import sys
 import pandas as pd
 import uuid
-from typing import List
+from typing import List, Tuple
+from abc import ABC
 
 sys.path.append(os.getenv("RADISH_PATH"))
 sys.path.append(os.getenv("RADISH_DIR"))
@@ -12,20 +13,17 @@ from paprika.data.feed_filter import Filtration
 from paprika.data.feed_subscription import DataType
 
 
-class FeedSubscriber(object):
-    def __init__(self):
+class FeedSubscriber(ABC):
+    def __init__(self, **kwargs):
         self._uuid = uuid.uuid4().hex
         self.filtrations = []
-        self.data_types = []
+        # self.data_types = []
         self.call_count = 0
         self._subscribed_feed = None
+        self._parameter_dict = kwargs
     
-    def add_data_type(self, data_type: DataType):
-        if data_type not in self.data_types:
-            self.data_types.append(data_type)
-    
-    def clear_data_types(self):
-        self.data_types = []
+    # def clear_data_types(self):
+    #     self.data_types = []
     
     def add_filtration(self, filtration: Filtration):
         if filtration not in self.filtrations:
@@ -34,7 +32,7 @@ class FeedSubscriber(object):
     def clear_filtration(self):
         self.filtrations = []
     
-    def handle_event(self, event: List[pd.DataFrame], data_type: List[DataType]):
+    def handle_event(self, event: List[Tuple[DataType, pd.DataFrame]]):
         self.call_count += 1
         # print(event.shape)
         pass
@@ -52,17 +50,22 @@ class FeedSubscriber(object):
         assert isinstance(value, FeedSubscription)
         self._subscribed_feed = value
     
-    # TODO: add clear subscription
-    # def clear_subscription(self):
-    #     if self._subscribed_feed is not None:
-    #         _subscribed_feed.clear
-    
+    def clear_feed(self, clear_call_count = True):
+        self._subscribed_feed = None
+        if clear_call_count:
+            self.call_count = 0
     
     @property
     def uuid(self):
         return self._uuid
     
+    @property
+    def parameters(self):
+        return self._parameter_dict.keys()
     
+    def get_parameter(self, key, default_value=None):
+        return self._parameter_dict.get(key, default_value)
+    
+    def set_parameter(self, key, value):
+        self._parameter_dict[key] = value
 
-if __name__ == "__main__":
-    a = FeedSubscriber()
