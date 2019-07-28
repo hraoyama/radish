@@ -1,6 +1,6 @@
-import pytest
-import pandas as pd
 from paprika.data.feed_filter import *
+from datetime import datetime
+import numpy as np
 
 def test_filter():
     now = datetime.now()

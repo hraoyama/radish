@@ -1,5 +1,7 @@
-from abc import ABC
 import pandas as pd
+import functools
+import operator
+from abc import ABC
 from enum import Enum
 
 
@@ -63,12 +65,19 @@ class TimePeriod(Enum):
     CONTINUOUS = ''
 
 
+class TimeIndexing(Enum):
+    BEFORE = 1
+    AFTER = 2
+    BEFORE_AND_AFTER = 3
+
+
 class TimeFreqFilter(FreqFilter):
-    def __init__(self, period, length=None, starting=None):
+    def __init__(self, period, length=None, starting=None, indexing=TimeIndexing.BEFORE):
         assert isinstance(period, TimePeriod)
         if length is None:
             assert period == TimePeriod.CONTINUOUS
         super(TimeFreqFilter, self).__init__(period, length, starting)
+        self.time_indexing = indexing
     
     def apply(self, *args, **kwargs):
         dfi = args[0][0].index
@@ -84,8 +93,19 @@ class TimeFreqFilter(FreqFilter):
         used_range = pd.date_range(used_starting,
                                    dfi[-1].to_pydatetime(),
                                    freq=f'{self.length}{self.period.value}')
-        return sorted(list(set([dfi.asof(x) for x in used_range])))
+        
+        # comparing interval to retrieved time index:
+        #  [used_range[2],
+        #   dfi.asof(used_range[2]),
+        #   dfi.to_series().truncate(before=used_range[2])[0],
+        #   dfi[dfi.get_loc(used_range[2], method='bfill')]]
+        if self.time_indexing == TimeIndexing.BEFORE:
+            return sorted(list(set([dfi.asof(x) for x in used_range])))
+        elif self.time_indexing == TimeIndexing.AFTER:
+            return sorted(list(set([dfi[dfi.get_loc(x, method='bfill')] for x in used_range])))
+        elif self.time_indexing == TimeIndexing.BEFORE_AND_AFTER:
+            # https://stackoverflow.com/questions/952914/how-to-make-a-flat-list-out-of-list-of-lists
+            return sorted(list(set(
+                functools.reduce(operator.iconcat,
+                                 [[dfi.asof(x), dfi[dfi.get_loc(x, method='bfill')]] for x in used_range], []))))
         pass
-
-
-

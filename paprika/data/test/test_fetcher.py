@@ -1,5 +1,6 @@
 import pytest
 from paprika.data.fetcher import *
+from paprika.data.data_channel import *
 
 def test_fetcher():
 
