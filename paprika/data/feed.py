@@ -9,12 +9,14 @@ from datetime import datetime
 import logging
 import uuid
 import functools
+import numpy as np
+import pandas as pd
 
 sys.path.append(os.getenv("RADISH_PATH"))
 sys.path.append(os.getenv("RADISH_DIR"))
 
 
-class FeedSubscription:
+class Feed:
     def __init__(self, name: str, start: datetime, end: datetime):
         super().__init__()
         assert end > start
@@ -25,14 +27,10 @@ class FeedSubscription:
         self.fetcher = HistoricalDataFetcher()
         
         self.subscribers_dispatch = dict()
-        self.subscribers_dispatch[DataType.ORDERBOOK] = {}
-        self.subscribers_dispatch[DataType.TRADES] = {}
         
         # At this point we only support one DataFrame per Data Type
         # (Individual DataFrames can be aggregated from multiple feeds)
         self.data_dictionary = dict()
-        self.data_dictionary[DataType.ORDERBOOK] = None
-        self.data_dictionary[DataType.TRADES] = None
     
     def __str__(self):
         return_str = f'Feed {self.name} {self.start_datetime.strftime(HistoricalDataFetcher.DATETIME_FORMAT)} to '
@@ -42,8 +40,6 @@ class FeedSubscription:
     
     def set_feed(self, list_of_patterns, data_type: DataType):
         
-        assert data_type in self.data_dictionary.keys()
-        
         (matched_symbols, df) = self.fetcher.fetch_from_pattern_list(
             self.fetcher.generate_simple_pattern_list(list_of_patterns, data_type),
             self.start_datetime,
@@ -51,6 +47,10 @@ class FeedSubscription:
             add_symbol=True)
         
         uploaded_name = self.name + "_" + str(data_type) + "_" + uuid.uuid4().hex
+        
+        if df.shape[0] == 0:
+            return None
+            # no data for this time span
         
         df = df.sort_index() # this is important when combining sources in the same data frame
         
@@ -83,6 +83,8 @@ class FeedSubscription:
             if subscribed_indices:
                 subscribed = True
                 for subscribed_index_set in subscribed_indices:
+                    if subscribed_index_set[0] not in self.subscribers_dispatch.keys():
+                        self.subscribers_dispatch[subscribed_index_set[0]] = {}
                     self.subscribers_dispatch[subscribed_index_set[0]][feed_subscriber.uuid] = [
                         subscribed_index_set[1]]
         if subscribed:
@@ -122,7 +124,7 @@ class FeedSubscription:
         from paprika.data.feed_subscriber import FeedSubscriber
         assert isinstance(feed_subscriber, FeedSubscriber)
         
-        # TODO: this seems like a slow implementation...
+        # # TODO: this seems like a slow implementation...
         dispatched_indices = dict()
         sorted_indices = []
         for data_type in self.subscribers_dispatch.keys():
@@ -137,27 +139,32 @@ class FeedSubscription:
                                 dispatched_indices[dt_index] = [data_type]
         
         sorted_indices = sorted(sorted_indices)
-        
+
+        to_dispatch_for_data_type = dict()
+        for data_type in self.data_dictionary.keys():
+            # https://stackoverflow.com/questions/49830069/efficiently-extract-rows-from-a-pandas-dataframe-ignoring-missing-index-labels
+            to_dispatch_for_data_type[data_type] = self.data_dictionary[data_type].loc[
+                self.data_dictionary[data_type].index.intersection(sorted_indices)]
+
         for index in sorted_indices:
-            data_types = dispatched_indices[index]
-            data_frames = []
-            passed_data_types =[]
-            for data_type in data_types:
-                if index in self.data_dictionary[data_type].index:
-                    data_frames.append(self.data_dictionary[data_type].loc[index])
-                    passed_data_types.append(data_type)
-            feed_subscriber.handle_event(list(zip(passed_data_types, data_frames)))
+            # usually this is only 1 data type matching a specific time, seems like a lot of work for edge cases
+            events = []
+            passed_data_types = dispatched_indices[index]
+            for data_type in passed_data_types:
+                if index in to_dispatch_for_data_type[data_type].index:
+                    # https://stackoverflow.com/questions/23521511/pandas-creating-dataframe-from-series
+                    data_to_send = to_dispatch_for_data_type[data_type].loc[index]
+                    if len(data_to_send.shape) == 1:
+                        events.append(tuple((data_type, pd.DataFrame([data_to_send],
+                                                                     columns=data_to_send.index.values))))
+                    else:
+                        events.append(tuple((data_type, data_to_send)))
+            if events:
+                feed_subscriber.handle_event(events)
+    
+    @property
+    def shape(self):
+        return dict([(data_type, df.shape if df is not None else None) for data_type, df in
+                     self.data_dictionary.items()])
 
 
-if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG, handlers=[logging.StreamHandler()])
-    starting_time = datetime(2017, 5, 31)
-    ending_time = datetime(2017, 6, 5)
-    my_feed = FeedSubscription("my feed", starting_time, ending_time)
-    my_feed.add_feed([".*MTA.IT0001250932.*"], DataType.ORDERBOOK)
-    print(my_feed.feed_symbols)
-    my_feed.add_feed([".*MTA.IT0001250932.*"], DataType.ORDERBOOK)
-    print(my_feed.feed_symbols)
-    my_feed.add_feed([".*EUX.FDAX201709.*"], DataType.ORDERBOOK)
-    print(my_feed.feed_symbols)
-    print(my_feed)

@@ -1,6 +1,6 @@
 from abc import ABC
 
-from paprika.data.feed_subscription import FeedSubscription
+from paprika.data.feed import Feed
 
 
 class BaseSignal(ABC):
@@ -9,6 +9,6 @@ class BaseSignal(ABC):
         self.redis_host = 'localhost'
 
 class Signal(BaseSignal):
-    def __init__(self, feedsubs: FeedSubscription):
+    def __init__(self, feedsubs: Feed):
         super().__init__()
         self.feed = feedsubs

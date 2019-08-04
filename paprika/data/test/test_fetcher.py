@@ -1,6 +1,4 @@
-import pytest
-from paprika.data.fetcher import *
-from paprika.data.data_channel import *
+from paprika.data.feed import *
 
 def test_fetcher():
 
@@ -36,3 +34,4 @@ def test_fetcher():
     assert arctic_table_name in DataChannel.table_names(arctic_db, arctic_host)
     DataChannel.delete_table(arctic_table_name)
     assert arctic_table_name not in DataChannel.table_names(arctic_db, arctic_host)
+    DataChannel.clear_all_feeds()

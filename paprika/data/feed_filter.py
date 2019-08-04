@@ -16,8 +16,8 @@ class FilterInterface(ABC):
 
 
 class Filtration(object):
-    def __init__(self):
-        self.filters = []
+    def __init__(self, filter: FilterInterface = None):
+        self.filters = [filter] if filter is not None else []
     
     def add_filter(self, filter: FilterInterface):
         self.filters.append(filter)
