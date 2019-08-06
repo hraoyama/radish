@@ -3,6 +3,7 @@ import functools
 import operator
 from abc import ABC
 from enum import Enum
+from typing import Union, List
 
 
 class FilterType(Enum):
@@ -16,8 +17,10 @@ class FilterInterface(ABC):
 
 
 class Filtration(object):
-    def __init__(self, filter: FilterInterface = None):
-        self.filters = [filter] if filter is not None else []
+    def __init__(self, filters: Union[FilterInterface, List[FilterInterface]] = None):
+        self.filters = []
+        if filters is not None:
+            self.filters = [x for x in filters if x is not None] if isinstance(filter, list) else [filters]
     
     def add_filter(self, filter: FilterInterface):
         self.filters.append(filter)
