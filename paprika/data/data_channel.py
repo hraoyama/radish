@@ -5,16 +5,41 @@ from arctic import Arctic
 from arctic import CHUNK_STORE
 import redis
 
+from paprika.data.data_type import DataType
+
 
 class DataChannel:
+    # this class deals with temporary data feeds
+    
     redis = redis.Redis('localhost')
+    DEFAULT_ARCTIC_SOURCE_NAME = 'feeds'
+    DEFAULT_ARCTIC_HOST = 'localhost'
+    
+    @staticmethod
+    def name_to_data_type(name: str, data_type: DataType):
+        name = name.upper().strip()
+        return f'{name}.{str(data_type)}'
+    
+    @staticmethod
+    def upload_to_permanent(table_name: str,
+                            is_overwrite: bool = True
+                            ):
+        table_name = table_name.upper().strip()
+        df = DataChannel.download(table_name, use_redis=False) # need to make sure it was uploaded to temporary 'feeds'
+        if df is None:
+            raise KeyError(
+                f'{table_name} does not exist in {DataChannel.DEFAULT_ARCTIC_SOURCE_NAME} on ' +
+                f'{DataChannel.DEFAULT_ARCTIC_HOST}')
+        else:
+            DataChannel.upload(df, table_name, is_overwrite, arctic_source_name='mdb',
+                               arctic_host=DataChannel.DEFAULT_ARCTIC_HOST, put_in_redis=False)
     
     @staticmethod
     def upload(data_frame: pd.DataFrame,
                table_name: str,
                is_overwrite: bool = True,
-               arctic_source_name: str = 'feeds',
-               arctic_host: str = 'localhost',
+               arctic_source_name: str = DEFAULT_ARCTIC_SOURCE_NAME,
+               arctic_host: str = DEFAULT_ARCTIC_HOST,
                put_in_redis=True):
         
         arctic = Arctic(arctic_host)
@@ -22,7 +47,8 @@ class DataChannel:
             arctic.initialize_library(arctic_source_name, lib_type=CHUNK_STORE)
         
         library = arctic[arctic_source_name]
-        
+
+        table_name = table_name.upper().strip()
         if not (table_name in library.list_symbols()):
             library.write(table_name, data_frame)
         elif is_overwrite:
@@ -34,16 +60,17 @@ class DataChannel:
         
         if put_in_redis:
             DataChannel.redis.set(table_name, data_frame.to_msgpack(compress='blosc'))
-            logging.info(f"Uploaded Redis {table_name} on localhost")
+            logging.info(f"Uploaded Redis {table_name} on {DataChannel.DEFAULT_ARCTIC_HOST}")
         
         return arctic_host, arctic_source_name, table_name
     
     @staticmethod
     def download(table_name: str,
-                 arctic_source_name: str = 'feeds',
-                 arctic_host: str = 'localhost',
+                 arctic_source_name: str = DEFAULT_ARCTIC_SOURCE_NAME,
+                 arctic_host: str = DEFAULT_ARCTIC_HOST,
                  use_redis=True):
         
+        table_name = table_name.upper().strip()
         msg = DataChannel.redis.get(table_name) if use_redis else None
         if msg:
             logging.debug(f'Load Redis cache for {table_name}')
@@ -58,7 +85,9 @@ class DataChannel:
             return library.read(table_name)
     
     @staticmethod
-    def delete_table(table_name: str, arctic_source_name: str = 'feeds', arctic_host: str = 'localhost'):
+    def delete_table(table_name: str, arctic_source_name: str = DEFAULT_ARCTIC_SOURCE_NAME,
+                     arctic_host: str = DEFAULT_ARCTIC_HOST):
+        table_name = table_name.upper().strip()
         arctic = Arctic(arctic_host)
         assert arctic_source_name in arctic.list_libraries()
         library = arctic[arctic_source_name]
@@ -66,14 +95,14 @@ class DataChannel:
         return library.delete(table_name)
     
     @staticmethod
-    def table_names(arctic_source_name: str = 'feeds', arctic_host: str = 'localhost'):
+    def table_names(arctic_source_name: str = DEFAULT_ARCTIC_SOURCE_NAME, arctic_host: str = DEFAULT_ARCTIC_HOST):
         arctic = Arctic(arctic_host)
         assert arctic_source_name in arctic.list_libraries()
         library = arctic[arctic_source_name]
         return library.list_symbols()
     
     @staticmethod
-    def clear_all_feeds(arctic_source_name: str = 'feeds', arctic_host: str = 'localhost'):
+    def clear_all_feeds(arctic_source_name: str = DEFAULT_ARCTIC_SOURCE_NAME, arctic_host: str = DEFAULT_ARCTIC_HOST):
         # just to be safe...
         assert arctic_source_name == 'feeds'
         assert arctic_host == 'localhost'

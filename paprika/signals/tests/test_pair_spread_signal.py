@@ -2,7 +2,7 @@
 from datetime import datetime
 from pprint import pprint as pp
 
-from paprika.data.fetcher import DataType
+from paprika.data.data_type import DataType
 from paprika.data.data_channel import DataChannel
 from paprika.data.feed import Feed
 from paprika.data.feed_filter import TimeFreqFilter, Filtration, TimePeriod

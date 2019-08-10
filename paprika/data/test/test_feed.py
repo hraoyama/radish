@@ -1,4 +1,4 @@
-from paprika.data.fetcher import DataType
+from paprika.data.data_type import DataType
 from paprika.data.feed import Feed, DataChannel
 from datetime import datetime
 import logging

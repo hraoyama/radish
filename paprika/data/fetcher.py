@@ -10,7 +10,6 @@ import sys
 import logging
 import itertools
 import functools
-from enum import Enum
 import re
 
 from arctic import exceptions
@@ -18,21 +17,7 @@ from arctic import Arctic
 from arctic import CHUNK_STORE
 from arctic.date import DateRange
 
-# lib_path = os.path.abspath(os.path.join(__file__, '..', '..', '..'))
-sys.path.append(os.getenv("RADISH_DIR"))
-
-
-class DataType(Enum):
-    ORDERBOOK = 1
-    TRADES = 2
-    
-    def __str__(self):
-        if self.value == 1:
-            return 'OrderBook'
-        elif self.value == 2:
-            return 'Trade'
-        else:
-            return self.name
+from .data_type import DataType
 
 
 class HistoricalDataFetcher:
@@ -58,6 +43,10 @@ class HistoricalDataFetcher:
         data_type_pattern = [str(data_type) + "$"]
         return list(map(lambda tup: ".".join(tup), itertools.product(descs, data_type_pattern)))
     
+    @staticmethod
+    def _scrub_pattern_from_string(patterned_string: str):
+        return patterned_string.replace("^", "").replace(".*", "").replace("$", "")
+    
     def __init__(self,
                  arctic_source_name='mdb',
                  arctic_host='localhost',
@@ -70,17 +59,25 @@ class HistoricalDataFetcher:
         self.available_feeds = self.library.list_symbols()
     
     def fetch_from_pattern_list(self,
-                                pattern_list: List[str],
+                                pattern_list_str: List[str],
                                 start_time: Union[int, datetime],
                                 end_time: Union[int, datetime],
                                 add_symbol: bool = True,
                                 field_columns: List[str] = None):
         
-        pattern_list = list(map(re.compile, pattern_list))
+        pattern_list = list(map(re.compile, pattern_list_str))
         symbols_in_arctic = [symbol_match for symbol_match in self.available_feeds for plist in pattern_list if
                              plist.match(symbol_match)]
         if not symbols_in_arctic:
-            return symbols_in_arctic, None
+            # check if somebody temporarily put it in Redis as a test feed
+            dfs = [self._get_redis_table(HistoricalDataFetcher._scrub_pattern_from_string(table_name)) for table_name in
+                   pattern_list_str]
+            dfs = [df for df in dfs if df is not None]
+            if dfs:
+                return symbols_in_arctic, functools.reduce(
+                    lambda df1, df2: pd.concat([df1, df2], ignore_index=False, sort=True), dfs)
+            else:
+                return symbols_in_arctic, None
         
         dfs = list(map(lambda x:
                        self.fetch(symbol=x, fields=field_columns, start_time=start_time, end_time=end_time,
@@ -133,6 +130,14 @@ class HistoricalDataFetcher:
     def get_meta_data(self):
         return dict(zip(self.library.list_symbols(),
                         [self.library.read_metadata(symbol) for symbol in self.library.list_symbols()]))
+    
+    def _get_redis_table(self, table_name):
+        msg = self.redis.get(table_name)
+        if msg:
+            logging.debug(f'Load Redis cache for {table_name}')
+            return pd.read_msgpack(msg)
+        else:
+            return None
     
     def fetch_orderbook(self,
                         symbol: str,
