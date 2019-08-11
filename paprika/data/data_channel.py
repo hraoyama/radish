@@ -68,9 +68,11 @@ class DataChannel:
     def download(table_name: str,
                  arctic_source_name: str = DEFAULT_ARCTIC_SOURCE_NAME,
                  arctic_host: str = DEFAULT_ARCTIC_HOST,
-                 use_redis=True):
+                 use_redis=True,
+                 string_format=True):
         
-        table_name = table_name.upper().strip()
+        if string_format:
+            table_name = table_name.upper().strip()
         msg = DataChannel.redis.get(table_name) if use_redis else None
         if msg:
             logging.debug(f'Load Redis cache for {table_name}')
