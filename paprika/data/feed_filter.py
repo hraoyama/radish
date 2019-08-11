@@ -83,7 +83,7 @@ class TimeFreqFilter(FreqFilter):
         self.time_indexing = indexing
     
     def apply(self, *args, **kwargs):
-        dfi = args[0][0].index
+        dfi = args[0][0].index if not isinstance(args[0], pd.DataFrame) else args[0].index
         # it is possible that we get duplicated indices in
         # (that is OK, multiple data points at the same instance)
         # but we need unique data points when filtering
