@@ -40,7 +40,8 @@ class DataChannel:
                is_overwrite: bool = True,
                arctic_source_name: str = DEFAULT_ARCTIC_SOURCE_NAME,
                arctic_host: str = DEFAULT_ARCTIC_HOST,
-               put_in_redis=True):
+               put_in_redis=True,
+               string_format=True):
         
         arctic = Arctic(arctic_host)
         if arctic_source_name not in arctic.list_libraries():
@@ -48,7 +49,7 @@ class DataChannel:
         
         library = arctic[arctic_source_name]
 
-        table_name = table_name.upper().strip()
+        table_name = table_name.upper().strip() if string_format else table_name
         if not (table_name in library.list_symbols()):
             library.write(table_name, data_frame)
         elif is_overwrite:
@@ -88,8 +89,9 @@ class DataChannel:
     
     @staticmethod
     def delete_table(table_name: str, arctic_source_name: str = DEFAULT_ARCTIC_SOURCE_NAME,
-                     arctic_host: str = DEFAULT_ARCTIC_HOST):
-        table_name = table_name.upper().strip()
+                     arctic_host: str = DEFAULT_ARCTIC_HOST,
+                     string_format=True):
+        table_name = table_name.upper().strip() if string_format else table_name
         arctic = Arctic(arctic_host)
         assert arctic_source_name in arctic.list_libraries()
         library = arctic[arctic_source_name]

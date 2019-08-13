@@ -63,7 +63,8 @@ class HistoricalDataFetcher:
                                 start_time: Union[int, datetime],
                                 end_time: Union[int, datetime],
                                 add_symbol: bool = True,
-                                field_columns: List[str] = None):
+                                field_columns: List[str] = None,
+                                between_times=None):
         
         pattern_list = list(map(re.compile, pattern_list_str))
         symbols_in_arctic = [symbol_match for symbol_match in self.available_feeds for plist in pattern_list if
@@ -83,10 +84,13 @@ class HistoricalDataFetcher:
                        self.fetch(symbol=x, fields=field_columns, start_time=start_time, end_time=end_time,
                                   add_symbol=add_symbol),
                        symbols_in_arctic))
-        dfAll = functools.reduce(lambda df1, df2: pd.concat([df1, df2], ignore_index=False, sort=True), dfs)
+        df_all = functools.reduce(lambda df1, df2: pd.concat([df1, df2], ignore_index=False, sort=True), dfs)
+        df_all = df_all.between_time(between_times[0], between_times[1]) if between_times is not None else df_all
+        
         # dfAll = functools.reduce(lambda df1, df2: pd.merge(df1, df2, how='outer', left_index=True, right_index=True),dfs)
         # dfAll.sort_index(inplace=True)
-        return symbols_in_arctic, dfAll
+        
+        return symbols_in_arctic, df_all
     
     def fetch(self,
               symbol: str,

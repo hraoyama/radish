@@ -24,7 +24,8 @@ def test_fetcher():
                                                                        HistoricalDataFetcher.DATE_FORMAT) + "." +
                                                                    ending_time.strftime(
                                                                        HistoricalDataFetcher.DATE_FORMAT),
-                                                                   True)
+                                                                   put_in_redis=True,
+                                                                   string_format=False)
     assert arctic_table_name == 'EUX.FDAX201709.OrderBook_MTA.IT0001250932.OrderBook_20170531.20170605'
     assert arctic_host == 'localhost'
     assert arctic_db == 'feeds'
@@ -32,6 +33,6 @@ def test_fetcher():
     assert df.shape[1] == 25
     assert df.shape[0] > 100
     assert arctic_table_name in DataChannel.table_names(arctic_db, arctic_host)
-    DataChannel.delete_table(arctic_table_name)
+    DataChannel.delete_table(arctic_table_name, string_format=False)
     assert arctic_table_name not in DataChannel.table_names(arctic_db, arctic_host)
     DataChannel.clear_all_feeds()
