@@ -78,7 +78,8 @@ class TimeFreqFilter(FreqFilter):
     def __init__(self, period, length=None, starting=None, indexing=TimeIndexing.BEFORE):
         assert isinstance(period, TimePeriod)
         if length is None:
-            assert period == TimePeriod.CONTINUOUS
+            if not period == TimePeriod.CONTINUOUS:
+                length = 1
         super(TimeFreqFilter, self).__init__(period, length, starting)
         self.time_indexing = indexing
     
