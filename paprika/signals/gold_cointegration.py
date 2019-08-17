@@ -1,16 +1,9 @@
 import numpy as np
 import pandas as pd
 from typing import List, Tuple
-from datetime import datetime
-from sklearn.preprocessing import StandardScaler
-from collections import deque
-from pprint import pprint as pp
 
 from paprika.data.fetcher import DataType
-from paprika.data.data_channel import DataChannel
-from paprika.data.feed import Feed
 from paprika.data.feed_subscriber import FeedSubscriber
-from paprika.data.feed_filter import TimeFreqFilter, Filtration, TimePeriod
 
 
 class GoldSpread(FeedSubscriber):

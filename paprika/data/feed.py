@@ -40,6 +40,9 @@ class Feed:
     
     def set_feed(self, list_of_patterns, data_type: DataType):
         
+        if isinstance(list_of_patterns,str):
+            list_of_patterns = [list_of_patterns]
+        
         (matched_symbols, df) = self.fetcher.fetch_from_pattern_list(
             self.fetcher.generate_simple_pattern_list(list_of_patterns, data_type),
             self.start_datetime,
