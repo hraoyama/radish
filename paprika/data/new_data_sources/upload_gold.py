@@ -6,10 +6,9 @@ from paprika.data.data_type import DataType
 from paprika.data.data_channel import DataChannel
 from paprika.data.feed import Feed
 from paprika.data.feed_filter import TimeFreqFilter, Filtration, TimePeriod
-from paprika.signals.pair_spread_ols_signal import PairSpread
 from paprika.signals.gold_cointegration import GoldSpread
 
-PATH = r'D:\_enterprise\strats\data'
+PATH = r'../../../resources/data/'
 
 
 def main():

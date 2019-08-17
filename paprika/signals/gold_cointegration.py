@@ -28,12 +28,14 @@ class GoldSpread(FeedSubscriber):
         data = events[0][1]
         z_score = (data['GLD'][0] - self.beta*data['GDX'][0] - self.mean) / self.sigma
         timestamp = data.index[0]
-        if z_score < -self.entry:
+        if z_score <= -self.entry:
             self.positions = self.positions.append(pd.DataFrame({'DateTime': [timestamp], 'GLD': [1.0], 'GDX': [-1.0]}))
-        elif z_score > self.entry:
+        elif z_score >= self.entry:
             self.positions = self.positions.append(pd.DataFrame({'DateTime': [timestamp], 'GLD': [-1.0], 'GDX': [1.0]}))
-        else:
+        elif np.abs(z_score) <= self.exit:
             self.positions = self.positions.append(pd.DataFrame({'DateTime': [timestamp], 'GLD': [0.0], 'GDX': [0.0]}))
+        else:
+            self.positions = self.positions.append(pd.DataFrame({'DateTime': [timestamp], 'GLD': [np.nan], 'GDX': [np.nan]}))
 
 
 
