@@ -24,20 +24,19 @@ def main():
 
     ts = pd.merge(ts2, ts1, how='inner', on=['Date'])
     ts.columns = ['date', 'GLD', 'GDX']
-
-    DataType.extend("EOD_PRICE")
     ts.set_index('date', inplace=True)
-
+    
+    DataType.extend("EOD_PRICE")
+    
     table_name = DataChannel.name_to_data_type("GOLD_GDX", DataType.EOD_PRICE)
     DataChannel.upload(ts, table_name)
     # following stores it in DB permanently - only do this if you are sure you need to keep this data
     # DataChannel.upload_to_permanent(table_name)
 
     gold_feed = Feed('GOLD_FEED', datetime(1950, 7, 1), datetime(2050, 1, 1))
-    gold_feed.set_feed(["GOLD_GDX"], DataType.EOD_PRICE)
+    gold_feed.set_feed("GOLD_GDX", DataType.EOD_PRICE)
 
     gold_signal = GoldSpread(BETA=1.631, MEAN=0.052196, STD=1.9487, ENTRY=1, EXIT=0.5)
-    gold_signal.add_filtration(Filtration(TimeFreqFilter(TimePeriod.CONTINUOUS)))
     gold_feed.add_subscriber(gold_signal)
 
     gold_signal.run()

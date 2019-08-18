@@ -33,8 +33,8 @@ class FeedSubscriber(ABC):
         pass
     
     def run(self):
-        if not self.filtrations:
-            self.filtrations.append(Filtration(TimeFreqFilter(TimePeriod.CONTINUOUS)))
+        if not self.subscribed_feed:
+            raise ValueError(f'Signal is not subscribed to any feed')
         self.subscribed_feed.run(self)
     
     @property

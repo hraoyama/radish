@@ -80,6 +80,8 @@ class TimeFreqFilter(FreqFilter):
         if length is None:
             if not period == TimePeriod.CONTINUOUS:
                 length = 1
+        elif period == TimePeriod.CONTINUOUS:
+            period = None
         super(TimeFreqFilter, self).__init__(period, length, starting)
         self.time_indexing = indexing
     

@@ -1,15 +1,13 @@
 from paprika.data.fetcher import HistoricalDataFetcher
 from paprika.data.data_channel import DataChannel
 from paprika.data.fetcher import DataType
-from paprika.data.feed_filter import Filtration
+from paprika.data.feed_filter import Filtration, TimeFreqFilter, TimePeriod
 
 import os
 import sys
 from datetime import datetime
-import logging
 import uuid
 import functools
-import numpy as np
 import pandas as pd
 
 sys.path.append(os.getenv("RADISH_PATH"))
@@ -81,6 +79,9 @@ class Feed:
             feed_subscriber.subscribed_feed = self
         
         subscribed = False
+        if not feed_subscriber.filtrations:
+            feed_subscriber.add_filtration(Filtration(TimeFreqFilter(TimePeriod.CONTINUOUS)))
+        
         for filter_spec in feed_subscriber.filtrations:
             subscribed_indices = self._get_subscribed_indices(filter_spec)
             if subscribed_indices:
