@@ -44,18 +44,33 @@ class Recorder(ABC):
 
 
 class RecorderOffline(Recorder):
-    def __init__(self):
-        self._key_to_timeseries = {}
+    def __init__(self, key_column=None, timestamp_column=None, value_column=None):
+        self._key_to_time_series = {}
+        self.key_column = key_column
+        self.value_column = value_column
+        self.timestamp_column = timestamp_column  # make it the index if it is None
     
-    def record(self, key, timestamp, value):
-        if key not in self._key_to_timeseries:
-            self._key_to_timeseries[key] = Timeseries()
+    def record(self, *args):  # key, timestamp, value):
+        key = None
+        timestamp = None
+        value = None
+    
+        if not isinstance(args[0], pd.DataFrame):
+            key = args[0]
+            timestamp = args[1]
+            value = args[2]
+        else:
+            
+            pass
         
-        timeseries = self._key_to_timeseries[key]
-        timeseries.append(timestamp, value)
-    
+        if key not in self._key_to_time_series:
+            self._key_to_time_series[key] = Timeseries()
+
+        time_series = self._key_to_time_series[key]
+        time_series.append(timestamp, value)
+
     def get_dict(self):
-        return self._key_to_timeseries.copy()
+        return self._key_to_time_series.copy()
 
 
 class RecorderOnline(Recorder):

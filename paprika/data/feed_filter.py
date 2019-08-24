@@ -32,9 +32,6 @@ class Filtration(object):
         return [f.apply(args, kwargs) for f in self.filters]
 
 
-# class TimeSpanFilter(FilterInterface):
-#     def __init__(self, ):
-
 class FreqFilter(FilterInterface):
     def __init__(self, period, length=1, starting=None):
         super(FreqFilter, self).__init__()

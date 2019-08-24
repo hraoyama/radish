@@ -15,7 +15,7 @@ sys.path.append(os.getenv("RADISH_DIR"))
 
 
 class Feed:
-    def __init__(self, name: str, start: datetime, end: datetime):
+    def __init__(self, name: str, start=datetime(1900, 1, 1), end=datetime(2200, 1, 1)):
         super().__init__()
         assert end > start
         self.start_datetime = start
@@ -38,7 +38,7 @@ class Feed:
     
     def set_feed(self, list_of_patterns, data_type: DataType):
         
-        if isinstance(list_of_patterns,str):
+        if isinstance(list_of_patterns, str):
             list_of_patterns = [list_of_patterns]
         
         (matched_symbols, df) = self.fetcher.fetch_from_pattern_list(
@@ -53,7 +53,7 @@ class Feed:
             return None
             # no data for this time span
         
-        df = df.sort_index() # this is important when combining sources in the same data frame
+        df = df.sort_index()  # this is important when combining sources in the same data frame
         
         # it is possible that we have multiple duplicated indices at the MS level...
         # do not remove them because in orderbook situations they can be valid
@@ -143,13 +143,13 @@ class Feed:
                                 dispatched_indices[dt_index] = [data_type]
         
         sorted_indices = sorted(sorted_indices)
-
+        
         to_dispatch_for_data_type = dict()
         for data_type in self.data_dictionary.keys():
             # https://stackoverflow.com/questions/49830069/efficiently-extract-rows-from-a-pandas-dataframe-ignoring-missing-index-labels
             to_dispatch_for_data_type[data_type] = self.data_dictionary[data_type].loc[
                 self.data_dictionary[data_type].index.intersection(sorted_indices)]
-
+        
         for index in sorted_indices:
             # usually this is only 1 data type matching a specific time, seems like a lot of work for edge cases
             events = []
@@ -170,5 +170,3 @@ class Feed:
     def shape(self):
         return dict([(data_type, df.shape if df is not None else None) for data_type, df in
                      self.data_dictionary.items()])
-
-

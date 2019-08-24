@@ -8,7 +8,7 @@ from abc import ABC
 sys.path.append(os.getenv("RADISH_PATH"))
 sys.path.append(os.getenv("RADISH_DIR"))
 
-from paprika.data.feed_filter import Filtration, TimeFreqFilter, TimePeriod
+from paprika.data.feed_filter import Filtration
 from paprika.data.feed import DataType
 
 
