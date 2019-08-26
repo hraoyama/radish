@@ -7,12 +7,12 @@ import functools
 
 
 class DataProcessor():
-    AVAILABLE_IN_FEEDS = False
+    MAKE_AVAILABLE_IN_FEEDS = True
     
     def __init__(self, *args, **kwargs):
         if isinstance(args[0], pd.DataFrame):
             self._data = args[0]
-            if DataProcessor.AVAILABLE_IN_FEEDS:
+            if DataProcessor.MAKE_AVAILABLE_IN_FEEDS:
                 new_table_name = kwargs.get("table_name", None)
                 new_table_name = args[1] if new_table_name is None and len(args) > 1 and isinstance(args[1],
                                                                                                     str) else new_table_name
@@ -31,7 +31,7 @@ class DataProcessor():
                 else:
                     kwargs = dict({"arctic_source_name": 'mdb', "string_format": False})
             self._data = DataChannel.download(args[0], *args[1:], **kwargs)
-            if DataProcessor.AVAILABLE_IN_FEEDS:
+            if DataProcessor.MAKE_AVAILABLE_IN_FEEDS and not is_available_in_feeds:
                 DataChannel.upload(self._data, args[0], arctic_source_name='feeds', string_format=False)
         elif "table_name" in kwargs.keys():
             is_available_in_feeds = kwargs["table_name"] in DataChannel.table_names()
@@ -40,7 +40,7 @@ class DataProcessor():
             if "string_format" not in kwargs:
                 kwargs["string_format"] = False
             self._data = DataChannel.download(**kwargs)
-            if DataProcessor.AVAILABLE_IN_FEEDS:
+            if DataProcessor.MAKE_AVAILABLE_IN_FEEDS and not is_available_in_feeds:
                 DataChannel.upload(self._data, kwargs["table_name"], arctic_source_name='feeds', string_format=False)
         else:
             raise ValueError(f'Unable to interpret DataProcessor arguments: {str(args)} and {str(kwargs)}')

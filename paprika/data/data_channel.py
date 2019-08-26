@@ -3,9 +3,12 @@ import logging
 
 from arctic import Arctic
 from arctic import CHUNK_STORE
+from datetime import datetime, timedelta
 import redis
+import time
 
 from paprika.data.data_type import DataType
+
 
 
 class DataChannel:
@@ -25,7 +28,7 @@ class DataChannel:
                             is_overwrite: bool = True
                             ):
         table_name = table_name.upper().strip()
-        df = DataChannel.download(table_name, use_redis=False) # need to make sure it was uploaded to temporary 'feeds'
+        df = DataChannel.download(table_name, use_redis=False)  # need to make sure it was uploaded to temporary 'feeds'
         if df is None:
             raise KeyError(
                 f'{table_name} does not exist in {DataChannel.DEFAULT_ARCTIC_SOURCE_NAME} on ' +
@@ -48,7 +51,7 @@ class DataChannel:
             arctic.initialize_library(arctic_source_name, lib_type=CHUNK_STORE)
         
         library = arctic[arctic_source_name]
-
+        
         table_name = table_name.upper().strip() if string_format else table_name
         if not (table_name in library.list_symbols()):
             library.write(table_name, data_frame)
@@ -70,7 +73,8 @@ class DataChannel:
                  arctic_source_name: str = DEFAULT_ARCTIC_SOURCE_NAME,
                  arctic_host: str = DEFAULT_ARCTIC_HOST,
                  use_redis=True,
-                 string_format=True):
+                 string_format=True,
+                 cascade = True):
         
         if string_format:
             table_name = table_name.upper().strip()
@@ -82,9 +86,15 @@ class DataChannel:
             logging.debug(f'Load Arctic cache for {table_name}')
             arctic = Arctic(arctic_host)
             assert arctic_source_name in arctic.list_libraries()
-            
+
             library = arctic[arctic_source_name]
-            logging.info(f"Read {table_name} inside {arctic_source_name} on {arctic_host}.")
+            
+            if table_name in library.list_symbols() or not cascade:
+                logging.info(f"Read {table_name} inside {arctic_source_name} on {arctic_host}.")
+            else:
+                library = arctic['mdb']
+                logging.info(f"Read {table_name} inside {arctic_source_name} on {arctic_host}.")
+
             return library.read(table_name)
     
     @staticmethod
@@ -117,3 +127,13 @@ class DataChannel:
         for table_name in library.list_symbols():
             DataChannel.redis.delete(table_name)
             library.delete(table_name)
+    
+    @staticmethod
+    def extract_time_span(symbol, time_start, time_delta=timedelta(seconds=300),
+                          arctic_source_name: str = DEFAULT_ARCTIC_SOURCE_NAME, arctic_host: str = DEFAULT_ARCTIC_HOST):
+        data = DataChannel.download(symbol, arctic_source_name, arctic_host, use_redis=True, string_format=False)
+        return_data = data.loc[time_start:(time_start + time_delta)]
+        if return_data.shape[0] <= 0:
+            return_data = data
+        return return_data
+      

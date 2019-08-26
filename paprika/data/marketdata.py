@@ -212,7 +212,7 @@ class MarketDataBacktest:
 
         if (key, window) not in self.max_price:
             self._precalculate_max_price(key, window)
-            # raise ValueError('max price not init for window length %s', window)
+            # raise ValueError('max limit_price not init for window length %s', window)
 
         timestamps = self.timestamps[key]
         max_price = self.max_price[(key, window)]
@@ -221,7 +221,7 @@ class MarketDataBacktest:
         # "index - 1" to exclude the candle @timestamp, i.e. Look back 'window'
         # candles before timestamp.
         if max_price[index - 1] == np.nan:
-            raise ValueError('no enough history data to calculate max price:'
+            raise ValueError('no enough history data to calculate max limit_price:'
                              ' %s, %s', key, micros_to_datetime(timestamp))
         return max_price[index - 1]
 

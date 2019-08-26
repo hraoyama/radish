@@ -30,8 +30,7 @@ def test_data_processor():
         (extract_returns, {"COLS": "Price", "RETURN_TYPE": "LOG_RETURN"}).data
     pp(z.Price['2017-09-13 23:18:47.488475':'2017-09-15 00:18:44.655347'])
     
-    # make source data available from the feeds
-    DataProcessor.AVAILABLE_IN_FEEDS = True
+    # DataProcessor.MAKE_AVAILABLE_IN_FEEDS = True # defaults
     
     z2 = DataProcessor(data, table_name="I_WILL_ACCESS_THIS_LATER") \
         (TimeFreqFilter(TimePeriod.HOUR, 1)) \
@@ -39,8 +38,6 @@ def test_data_processor():
         (extract_returns, {"COLS": "Price", "RETURN_TYPE": "LOG_RETURN"}) \
         (fix_colnames, {"CASE": "upper"}).data
     pp(z2.PRICE['2017-09-13 23:55':'2017-09-14 11:00'])
-    
-    DataProcessor.AVAILABLE_IN_FEEDS = False
     
     z3 = DataProcessor("I_WILL_ACCESS_THIS_LATER") \
         ("between_time", '11:30', '14:00') \

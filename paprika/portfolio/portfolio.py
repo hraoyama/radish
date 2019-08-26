@@ -70,8 +70,8 @@ class Portfolio:
                     price = get_context().marketdata.get_ticker_price(
                         self._source, asset)
                 value_dist[asset] = float_type()(price * amount)
-                # if not isinstance(price, list):
-                #     value_dist[asset] = float_type()(price * amount)
+                # if not isinstance(limit_price, list):
+                #     value_dist[asset] = float_type()(limit_price * amount)
                 # else:
                 #     value_dist[asset] = None
         return value_dist

@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from pprint import pprint as pp
 import numpy as np
 
+
 def test_data_processor_on_new_data_type():
     # manipulate new data types
     start = datetime.now()
@@ -20,7 +21,6 @@ def test_data_processor_on_new_data_type():
         new_data.append(ts, val)
     DataType.extend('TIMESERIES')
     
-    DataProcessor.AVAILABLE_IN_FEEDS = True
     data4 = DataProcessor(new_data.to_dataframe(column_name="observation"), table_name="MyRandomIdentifier") \
         ("between_time", '08:00:00', '09:00:00') \
         (lambda x: x[np.abs(x["observation"]) < 2.0]).data

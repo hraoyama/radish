@@ -15,6 +15,14 @@ class Side(Enum):
     BUY = 0,
     SELL = 1
 
+    def __str__(self):
+        if self.value == 0:
+            return 'Ask'
+        elif self.value == 1:
+            return 'Bid'
+        else:
+            return self.name
+
 
 class TimeInForce(Enum):
     # Good Till Cancel
@@ -32,37 +40,42 @@ class OrderStatus(Enum):
 
 
 class Order:
-    def __init__(self, symbol, amount):
+    def __init__(self, symbol, amount, side, creation_time):
         """Negative amount means sell"""
         global _id_generator
         self.id = _id_generator
         _id_generator += 1
         self.symbol = symbol
         self.amount = float_type()(amount)
+        self.creation_time = creation_time
+        self.side = side
 
 
 class MarketOrder(Order):
-    def __init__(self, symbol, amount):
-        super().__init__(symbol, amount)
-
+    def __init__(self, symbol, amount, side, creation_time):
+        super().__init__(symbol, amount, side, creation_time)
+    
     def __repr__(self):
-        return f'MarketOrder(id={self.id}, symbol={self.symbol}, amount={self.amount})'
+        return f'MarketOrder(id={self.id}, symbol={self.symbol}, amount={self.amount}, creation_time={self.creation_time})'
 
 
 class LimitOrder(Order):
     def __init__(self,
                  symbol,
                  amount,
+                 side,
                  price,
+                 creation_time,
                  time_in_force=TimeInForce.GTC,
                  post_only=False):
-        super().__init__(symbol, amount)
-        self.price = float_type()(price)
+        super().__init__(symbol, amount, side, creation_time)
+        self.limit_price = float_type()(price)
         self.time_in_force = time_in_force
         self.post_only = post_only
-
+    
     def __repr__(self):
-        return f'LimitOrder(id={self.id}, symbol={self.symbol}, amount={self.amount})'
+        return f'LimitOrder(id={self.id}, symbol={self.symbol}, amount={self.amount}, creation_time={self.creation_time})'
+
 
 # class ExecutionResult(object):
 #     def __init__(self,
@@ -103,3 +116,4 @@ class ExecutionResult(NamedTuple):
     order_type: OrderType = None
     side: str = None
     price: float = None
+    costs: float = None
