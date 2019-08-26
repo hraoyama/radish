@@ -29,15 +29,16 @@ class Filtration(object):
         return '\n'.join([str(f) for f in self.filters])
     
     def apply(self, *args, **kwargs):
-        return [f.apply(args, kwargs) for f in self.filters]
+        return [f.apply(*args, **kwargs) for f in self.filters]
 
 
 class FreqFilter(FilterInterface):
-    def __init__(self, period, length=1, starting=None):
+    def __init__(self, period, length=1, starting=None, return_fixed_indices=False):
         super(FreqFilter, self).__init__()
         self.length = length
         self.period = period
         self.starting = starting
+        self.return_fixed_indices = return_fixed_indices
     
     def __str__(self):
         type_of_length = "NoneType" if self.length is None else str(type(self.length))
@@ -72,14 +73,14 @@ class TimeIndexing(Enum):
 
 
 class TimeFreqFilter(FreqFilter):
-    def __init__(self, period, length=None, starting=None, indexing=TimeIndexing.BEFORE):
+    def __init__(self, period, length=None, starting=None, indexing=TimeIndexing.BEFORE, return_fixed_indices=False):
         assert isinstance(period, TimePeriod)
         if length is None:
             if not period == TimePeriod.CONTINUOUS:
                 length = 1
         elif period == TimePeriod.CONTINUOUS:
             period = None
-        super(TimeFreqFilter, self).__init__(period, length, starting)
+        super(TimeFreqFilter, self).__init__(period, length, starting, return_fixed_indices)
         self.time_indexing = indexing
     
     def apply(self, *args, **kwargs):
@@ -97,18 +98,24 @@ class TimeFreqFilter(FreqFilter):
                                    dfi[-1].to_pydatetime(),
                                    freq=f'{self.length}{self.period.value}')
         
+        return_fixed_range = self.return_fixed_indices
         # comparing interval to retrieved time index:
         #  [used_range[2],
         #   dfi.asof(used_range[2]),
         #   dfi.to_series().truncate(before=used_range[2])[0],
         #   dfi[dfi.get_loc(used_range[2], method='bfill')]]
         if self.time_indexing == TimeIndexing.BEFORE:
-            return sorted(list(set([dfi.asof(x) for x in used_range])))
+            indices_to_return = sorted(list(set([dfi.asof(x) for x in used_range])))
         elif self.time_indexing == TimeIndexing.AFTER:
-            return sorted(list(set([dfi[dfi.get_loc(x, method='bfill')] for x in used_range])))
+            indices_to_return = sorted(list(set([dfi[dfi.get_loc(x, method='bfill')] for x in used_range])))
         elif self.time_indexing == TimeIndexing.BEFORE_AND_AFTER:
             # https://stackoverflow.com/questions/952914/how-to-make-a-flat-list-out-of-list-of-lists
-            return sorted(list(set(
-                functools.reduce(operator.iconcat,
-                                 [[dfi.asof(x), dfi[dfi.get_loc(x, method='bfill')]] for x in used_range], []))))
+            indices_to_return = sorted(list(set(functools.reduce(operator.iconcat,
+                                                                 [[dfi.asof(x), dfi[dfi.get_loc(x, method='bfill')]]
+                                                                  for x in used_range], []))))
+        if return_fixed_range:
+            indices_to_return = (indices_to_return, used_range)
+        
+        return indices_to_return
+        
         pass

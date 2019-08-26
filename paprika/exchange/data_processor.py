@@ -62,20 +62,25 @@ class DataProcessor():
     def __getitem__(self, tuple_of_arguments):
         filter_applied = tuple_of_arguments[0]
         funcs = tuple_of_arguments[1]
-        indices_to_grab = filter_applied.apply(self._data)
-        indices_shifted = fast_shift(indices_to_grab, -1)
+        
+        old_return_fixed_indices = filter_applied.return_fixed_indices
+        filter_applied.return_fixed_indices = True
+        indices_that_exist, fixed_indices = filter_applied.apply(self._data)
+        filter_applied.return_fixed_indices = old_return_fixed_indices
         
         column_names = tuple_of_arguments[2] if len(tuple_of_arguments) > 2 else None
         if column_names is None:
             column_names = list(self._data.columns.values)
 
         summaries = [summarize(self._data.loc[x[0]:x[1]][column_names], funcs) for
-                     x in zip(indices_to_grab[:-1], indices_shifted[:-1])]
+                     x in zip(fixed_indices[:-1], fixed_indices[1:])]
         
-        summary = functools.reduce(lambda df1, df2: pd.concat([df1, df2], ignore_index=False, sort=True), summaries)
-        summary["Start_Interval"] = indices_to_grab[:-1]
-        summary["End_Interval"] = indices_shifted[:-1]
-        summary.set_index('End_Interval', inplace=True)
+        summary = functools.reduce(lambda df1, df2: pd.concat([df1, df2], ignore_index=False), summaries)
+        summary["End_Period"] = fixed_indices[:-1]
+        summary["Start_Period"] = fixed_indices[1:]
+
+        summary.set_index('Start_Period', inplace=True)
+
         if not isinstance(summary, type(self._data)):
             raise TypeError(
                 f'Interval Call to DataProcessor should return type {type(self._data)} but returned {type(summary)}')

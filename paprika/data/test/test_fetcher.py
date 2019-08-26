@@ -2,7 +2,6 @@ from paprika.data.feed import *
 
 def test_fetcher():
 
-    logging.basicConfig(level=logging.DEBUG, handlers=[logging.StreamHandler()])
     data_fetcher = HistoricalDataFetcher()
     starting_time = datetime(2017, 5, 31)
     ending_time = datetime(2017, 6, 5)
