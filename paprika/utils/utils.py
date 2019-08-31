@@ -4,6 +4,7 @@ from typing import Any, Type
 
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 
 from paprika.utils.time import datetime_to_millis, millis_for_frequency, seconds_for_frequency
 from paprika.utils.types import float_type
@@ -219,3 +220,140 @@ def simple_transaction_costs(positions, cost):
     :return: total transaction costs
     """
     return np.nansum(np.abs(positions - array_shift(positions, 1)), axis=1) * cost
+
+def cadf_test(y, x, **kwargs):
+    """
+    Performs Engle-Granger cointegration test
+    :param y: y series
+    :param x: x series
+    :param kwargs: additional parameters for CADF test
+    :return: test statistic, p-values and critical values
+    """
+    result = coint(y, x, **kwargs)
+    return result
+
+
+def johansen_test(dat, **kwargs):
+    """
+    Performs Johansen cointegration test.
+    :param dat: input data (array like)
+    :param kwargs: additional parameters for Johansen test (i.e., trend presence, lags)
+    :return: fitted object.
+    Attributes:
+        lr1 and lr2 - trace and maximum eigen value statistics
+        cvt and cvm - the respective critical values
+        eig and evec - eigenvalues and eigenvectors
+    """
+    obj = vm.coint_johansen(dat, **kwargs)
+    return obj
+
+
+def correlation_test(x1, x2):
+    """
+    Pearson's correlation test of significance
+    :param x1: first series
+    :param x2: second series
+    :return: correlation and its p_value
+    """
+    x = pd.DataFrame([x1, x2]).T.dropna().values
+    return pearsonr(x[:, 0], x[:, 1])
+
+
+def half_life(z):
+    """
+    Computing half-life of mean-reverting strategy based
+    on the Ornstein-Uhlenbeck approximation of the process
+
+    :param z: input time series represented by pandas.Series (i.e., z-score)
+    :return: half-life
+    """
+    dz = (z - z.shift(1))[1:]
+    prev_z = z.shift(1)[1:].values.reshape(-1, 1)
+    fit_obj = LinearRegression().fit(prev_z - np.mean(z), dz)
+
+    return - np.log(2) / fit_obj.coef_[0]
+
+
+def adf_test(z, **kwargs):
+    """
+    Performs Augmented-Dickey Fuller Test
+    :param z: input time series
+    :param kwargs: additional parameters for augmented Dickey-Fuller test
+    :return:
+    """
+    results = adfuller(z, **kwargs)
+    return results
+
+
+def hurst_exp(z):
+    """
+    Hurst exponent computation
+    :param z:
+    :return:
+    """
+    hurst_val, p_value = genhurst(np.log(z))
+    return hurst_val, p_value
+
+
+def kf_simple(obs, obs_model):
+    """
+    Simple Kalman filter implementation.
+    Parameters selected ad-hoc. For proper estimation see Rajamani and Rawlings (2007, 2009)
+    y(t) = x(t)*beta(t) + e(t)
+    beta(t) = beta(t-1) + w(t)
+    :param obs:
+    :param obs_model:
+    :return: hidden variable, measurement error and its variance
+    """
+
+    x = np.stack((obs_model, np.ones(len(obs_model))), axis=1)
+    param_dim = x.shape[1]
+
+    # parameters of Kalman filter
+    delta = 0.0001  # large delta gives quicker change in beta.
+    Vw = delta / (1 - delta) * np.eye(param_dim)
+    Ve = 0.001
+
+    y_hat = np.full(obs.shape[0], np.nan)  # measurement prediction
+    e = y_hat.copy()  # measurement error
+    Q = y_hat.copy()  # variance-covariance matrix of e
+
+    # For clarity, we denote R(t|t) by P(t). Initialize R, P and beta.
+    R = np.zeros((param_dim, param_dim))  # variance-covariance matrix of beta: R(t|t-1)
+    P = R.copy()  # variance-covariance matrix of beta: R(t|t)
+    beta = np.full((param_dim, x.shape[0]), np.nan)
+
+    # Initialize to zero
+    beta[:, 0] = 0
+
+    # Given initial beta and R (and P)
+    for t in range(len(obs)):
+        if t > 0:
+            beta[:, t] = beta[:, t - 1]
+            R = P + Vw
+
+        y_hat[t] = np.dot(x[t, :], beta[:, t])
+        Q[t] = np.dot(x[t, :], np.dot(R, x[t, :])) + Ve
+        e[t] = obs[t] - y_hat[t]  # measurement prediction error
+        K = np.dot(x[t, :], R) / Q[t]  # Kalman gain
+        beta[:, t] = beta[:, t] + np.dot(K, e[t])  # State update. Equation 3.11
+        P = R - np.dot(np.dot(K.reshape(-1, 1), x[t, :].reshape(-1, 1).T), R)  # State covariance update. Equation 3.12
+
+    return beta, e, Q
+
+
+def stats_print(time_idx, returns, rotation=0):
+    """
+    Computes APR and Sharpe ratio. Also plots cumulative returns of the strategy
+    :param time_idx: time index
+    :param returns: returns series
+    :param rotation: angle to rotate xticks
+    :return: None
+    """
+    cum_ret = (1 + returns).cumprod() - 1
+    plt.plot(time_idx, cum_ret)
+    plt.xticks(rotation=rotation)
+    plt.show()
+
+    print('APR={:.2f} and Sharpe={:.2f}'.format(np.prod(1 + returns) ** (252 / len(returns)) - 1, sharpe(returns, 252)))
+    return

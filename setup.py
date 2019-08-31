@@ -20,6 +20,7 @@ setup(name='radish',
           'retry',
           'slackclient',
           'pandas',
-          'numpy'
+          'numpy',
+          'matplotlib'
       ],
       zip_safe=True)

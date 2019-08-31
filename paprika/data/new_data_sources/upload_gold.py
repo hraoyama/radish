@@ -66,6 +66,9 @@ def main():
     print("Sharpe ratio on the train {:.2f} and test {:.2f} sets respectively "
           "after adjusting for transaction costs.".format(sharp_cost_adj_tr, sharp_cost_adj_test))
 
+    # clear out any feeds in the cache
+    DataChannel.clear_all_feeds()
+
 
 if __name__ == "__main__":
     main()

@@ -7,8 +7,9 @@ from paprika.data.feed_subscriber import FeedSubscriber
 
 
 class GoldSpread(FeedSubscriber):
+
     def __init__(self, **kwargs):
-        super(GoldSpread, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.beta = self.get_parameter("BETA")
         self.mean = self.get_parameter("MEAN")
         self.sigma = self.get_parameter("STD")
@@ -17,7 +18,8 @@ class GoldSpread(FeedSubscriber):
         self.positions = pd.DataFrame()
 
     def handle_event(self, events: List[Tuple[DataType, pd.DataFrame]]):
-        super(GoldSpread, self).handle_event(events)
+
+        super().handle_event(events)
         data = events[0][1]
         z_score = (data['GLD'][0] - self.beta*data['GDX'][0] - self.mean) / self.sigma
         timestamp = data.index[0]
