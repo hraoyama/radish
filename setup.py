@@ -20,6 +20,6 @@ setup(name='radish',
           'retry',
           'slackclient',
           'pandas',
-          'numpy'
+          'numpy', 'haidata'
       ],
       zip_safe=True)

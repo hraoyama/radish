@@ -74,6 +74,7 @@ class TimeIndexing(Enum):
     BEFORE_AND_AFTER = 3
 
 
+# TODO improve the speed
 class TimeFreqFilter(FreqFilter):
     def __init__(self, period, length=None, starting=None, indexing=TimeIndexing.BEFORE):
         assert isinstance(period, TimePeriod)
