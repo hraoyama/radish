@@ -59,12 +59,12 @@ class Feed:
         # do not remove them because in orderbook situations they can be valid
         # df = df.loc[~df.index.duplicated(keep='first')]
         
-        DataChannel.upload(df, uploaded_name, is_overwrite=True)
-        
+        DataChannel.upload_to_redis(df, uploaded_name)
+
         self.feed_symbols.extend(matched_symbols)
         self.feed_symbols = list(set(self.feed_symbols))
         # necessary to download in case of append
-        self.data_dictionary[data_type] = DataChannel.download(uploaded_name)
+        self.data_dictionary[data_type] = df #DataChannel.download(uploaded_name)
         
         pass
     
