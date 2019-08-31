@@ -144,3 +144,78 @@ def forward_fill_to_ohlcv(df, end=None, frequency=None):
     tmp['volume'] = df['Volume'].resample(f'{sec}S').sum()
     
     return tmp
+
+
+def sharpe(excess_returns, period):
+    """
+    Computing Sharpe ratio. For the standard deviation, (N-1) scaling is used
+    :param excess_returns: excess returns of the strategy
+    :param period: period over which Sharpe ratio is computed
+    :return: returns Sharpe ratio
+    """
+    return np.nanmean(excess_returns) * np.sqrt(period) / np.nanstd(excess_returns, ddof=1)
+
+
+def array_shift(arr, shift):
+    """
+    Ugly implementation of array shift through pandas
+    :param arr: array to shift
+    :param shift: shift value
+    :return: shifted array
+    """
+    return pd.DataFrame(arr).shift(shift).values
+
+
+def drawdown_calculator(excess_returns):
+    """
+    Computation of maximum drawdown and maximum drawdown duration
+    :param excess_returns: excess returns of the portfolio
+    :return: tuple of max drawdown and duration
+    """
+
+    df = pd.DataFrame(excess_returns, columns=['net'])
+    df['cum_ret'] = (1 + df['net']).cumprod() - 1
+    df['high_mark'] = np.maximum.accumulate(df['cum_ret'].fillna(0))
+    df.loc[0, 'high_mark'] = np.nan
+    df['drawdown'] = (1 + df['cum_ret']) / (1 + df['high_mark']) - 1
+    max_drawdown = np.min(df['drawdown'])
+
+    for i in range(1, len(df)):
+        df.loc[i, 'duration'] = 0 if df.loc[i, 'drawdown'] == 0 else 1 + df.loc[i-1, 'duration']
+    max_drawdown_duration = np.max(df['duration'])
+
+    return max_drawdown, max_drawdown_duration
+
+
+def returns_calculator(prices, lag):
+    """
+    Non-overlapping returns at the given lag
+    :param prices: dataframe or Series with prices
+    :param lag: given lag
+    :return: returns
+    """
+    return (prices / prices.shift(lag) - 1)[::lag]
+
+
+def portfolio_return_calculator(positions, returns):
+    """
+    Computing portfolio's return from positions and returns
+    :param positions: positions at each day
+    :param returns: returns between t-1 and t
+    :return: portfolio's return
+    """
+    shifted = array_shift(positions, 1)
+    if len(positions.shape) == 1:
+        return shifted.flatten() * returns
+    else:
+        return np.nansum(shifted * returns, axis=1)
+
+
+def simple_transaction_costs(positions, cost):
+    """
+    Implementation of simple transaction model
+    :param positions: positions at each day
+    :param cost: cost per unit weight
+    :return: total transaction costs
+    """
+    return np.nansum(np.abs(positions - array_shift(positions, 1)), axis=1) * cost
