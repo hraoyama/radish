@@ -118,6 +118,9 @@ class DataProcessor():
     # this group of functions are nothing more than convenience functions!!
     # I know, breaks the single interface principle...
     
+    def summarize_intervals(self, time_freq_filter, funcs_list, column_name):
+        return self.__getitem__((time_freq_filter, funcs_list, column_name))
+    
     def time_freq(self, *args, **kwargs):
         return self.__call__(TimeFreqFilter(*args, **kwargs))
     

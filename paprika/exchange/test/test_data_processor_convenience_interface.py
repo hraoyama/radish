@@ -33,9 +33,10 @@ def test_data_processor_convenience_interface():
     pp(data3['2017-08-16':'2017-09-11'][["Price", "LogReturn_Px"]])
     
     data = DataProcessor("EUX.FDAX201709.Trade").index('2017-06-01 08:00', '2017-06-10 08:00'). \
-        between_time('08:15', '16:30').positive_price()[
-        TimeFreqFilter(TimePeriod.MINUTE, 5, starting=datetime(2017, 6, 1, 8, 15, 0)),
-        [DataProcessor.first, np.max, np.min, DataProcessor.last, np.median, np.mean, np.std], "Price"]. \
+        between_time('08:15', '16:30').positive_price(). \
+        summarize_intervals(TimeFreqFilter(TimePeriod.MINUTE, 5, starting=datetime(2017, 6, 1, 8, 15, 0)),
+                            [DataProcessor.first, np.max, np.min, DataProcessor.last, np.median, np.mean, np.std],
+                            "Price"). \
         rename_columns(['amax', 'amin', 'mean', 'median', 'first', 'last', 'std'],
                        ['HIGH', 'LOW', 'MEAN', 'MEDIAN', 'OPEN', 'CLOSE', 'STD']).data
     
@@ -44,9 +45,10 @@ def test_data_processor_convenience_interface():
     pp(data.columns.values)
     
     data2 = DataProcessor("EUX.FDAX201709.Trade").index('2017-06-01 08:00', '2017-06-10 08:00'). \
-        between_time('08:15', '16:30').positive_price()[
-        TimeFreqFilter(TimePeriod.MINUTE, 15, starting=datetime(2017, 6, 1, 8, 15, 0)),
-        [DataProcessor.first, np.max, np.min, DataProcessor.last, np.median, np.mean, np.std], "Price"]. \
+        between_time('08:15', '16:30').positive_price(). \
+        summarize_intervals(TimeFreqFilter(TimePeriod.MINUTE, 15, starting=datetime(2017, 6, 1, 8, 15, 0)),
+                            [DataProcessor.first, np.max, np.min, DataProcessor.last, np.median, np.mean, np.std],
+                            "Price"). \
         rename_columns(['amax', 'amin', 'mean', 'median', 'first', 'last', 'std'],
                        ['HIGH', 'LOW', 'MEAN', 'MEDIAN', 'OPEN', 'CLOSE', 'STD']). \
         extract_returns(column_name="MEAN", return_type="LOG_RETURN", new_column_name="LogReturn_MEAN"). \
