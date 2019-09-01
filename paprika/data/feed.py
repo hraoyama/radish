@@ -142,7 +142,7 @@ class Feed:
                             else:
                                 dispatched_indices[dt_index] = [data_type]
         
-        sorted_indices = sorted(sorted_indices)
+        sorted_indices = sorted(list(set(sorted_indices)))
         
         to_dispatch_for_data_type = dict()
         for data_type in self.data_dictionary.keys():
