@@ -139,5 +139,5 @@ class DataChannel:
         data = DataChannel.download(symbol, arctic_source_name, arctic_host, use_redis=True, string_format=False)
         return_data = data.loc[time_start:(time_start + time_delta)]
         if return_data.shape[0] <= 0:
-            return_data = data
+            return_data = None
         return return_data

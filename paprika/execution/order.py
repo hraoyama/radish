@@ -1,5 +1,8 @@
 from enum import Enum
 from typing import NamedTuple
+import aenum
+
+import numpy as np
 
 from paprika.utils.types import float_type
 
@@ -11,10 +14,10 @@ class OrderType(Enum):
     LIMIT = 1
 
 
-class Side(Enum):
-    BUY = 0,
+class Side(aenum.Enum):
+    BUY = 0
     SELL = 1
-
+    
     def __str__(self):
         if self.value == 0:
             return 'Ask'
@@ -107,6 +110,13 @@ class LimitOrder(Order):
 
 
 class ExecutionResult(NamedTuple):
+    @staticmethod
+    def get_fill_info(list_of_executions):
+        pxs = [execution_result.avg_price for execution_result in list_of_executions]
+        qtys = [execution_result.amount for execution_result in list_of_executions]
+        return np.mean(pxs), np.mean(qtys), np.sum([px * qty for px, qty in zip(pxs, qtys)]) / np.sum(qtys), \
+               np.max(pxs), np.min(pxs)
+    
     order_id: str
     status: OrderStatus
     amount: float

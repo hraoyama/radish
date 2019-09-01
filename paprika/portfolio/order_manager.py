@@ -32,23 +32,28 @@ class OrderManager(ABC):
 
 
 class SimpleOrderManager(OrderManager):
-    def __init__(self, transaction_cost: TransactionCost, time_delay=timedelta(microseconds=20)):
+    def __init__(self, transaction_cost: TransactionCost, time_delay=timedelta(microseconds=20),
+                 factor_if_exhausted=3.0):
         self._cost = transaction_cost
         self._time_delay = time_delay
+        self._factor_if_exhausted = factor_if_exhausted
         pass
     
     def accept_order(self, order: Order, src, target):
         data = DataChannel.extract_time_span(DataChannel.name_to_data_type(order.symbol, DataType.ORDERBOOK),
                                              order.creation_time + self._time_delay)
-        if data.shape[0] <= 0:
+        if data is None:
             # no data after this time, so nothing happens
             return None
-        remaining = 0
+        
         for idx_to_check in data.index:
             fills, remaining = self._extract_from_side(order, data.loc[idx_to_check])
             if remaining is None:
                 break
-        return None
+        
+        # inform target with the transaction costs
+        
+        return fills, remaining
     
     def _extract_from_side(self, order, book_data):
         executed_fills = []
@@ -59,14 +64,18 @@ class SimpleOrderManager(OrderManager):
         
         if remaining_order:
             # assume a fill at 3x times the average fill price on the remaining
-            # ExecutionResult(order_id=order.id, status=OrderStatus.FILLED, amount=order.amount, remaining=None,
-            #                 avg_price=available_px, symbol=order.symbol, order_type=OrderType.MARKET,
-            #                 side=order.side, price=available_px)
-            pass
-        else:
-            pass
+            avg_px, avg_qty, vw_px, max_px, min_px = ExecutionResult.get_fill_info(executed_fills)
+            remaining_fill_px = min_px + self._factor_if_exhausted * (vw_px - min_px)
+            executed_fills.append(
+                ExecutionResult(order_id=order.id, status=OrderStatus.FILLED, amount=order.amount, remaining=None,
+                                avg_price=remaining_fill_px, symbol=order.symbol, order_type=OrderType.MARKET,
+                                side=order.side, price=remaining_fill_px))
+            remaining_order = None
+        
+        return executed_fills, remaining_order
     
-    def _fill_from_level(self, executed_fills, order, book_data, level=0):
+    @staticmethod
+    def _fill_from_level(executed_fills, order, book_data, level=0):
         qty_lev_name = f'{str(order.side)}_Qty_Lev_{str(level)}'
         px_lev_name = f'{str(order.side)}_Px_Lev_{str(level)}'
         available_qty = book_data[[qty_lev_name]][0]
