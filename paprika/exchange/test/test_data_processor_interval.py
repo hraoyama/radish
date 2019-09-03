@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 
 
 def shift_colname(column_name, num_shifts, df):
-    lag_char = 'L' if num_shifts < 0 else 'F'
+    lag_char = 'F' if num_shifts < 0 else 'L'
     new_column_name = f'{column_name}_{lag_char}{str(np.abs(num_shifts))}'
     df[new_column_name] = df[[column_name]].shift(num_shifts)
     return df
@@ -51,13 +51,13 @@ def test_data_processor_interval():
         (extract_returns, {"COLS": "LogReturn_MEAN,LogReturn_STD", "RETURN_TYPE": "LOG_RETURN"}) \
         (partial(shift_colname, 'LogReturn_MEAN', -1))\
         (partial(shift_colname, 'LogReturn_STD', -1)) \
-        (lambda x: x[~np.isnan(x.LogReturn_STD) & ~np.isnan(x.STD) & ~np.isnan(x.LogReturn_STD_L1)]).data
+        (lambda x: x[~np.isnan(x.LogReturn_STD) & ~np.isnan(x.STD) & ~np.isnan(x.LogReturn_STD_F1)]).data
     
     pp(data2.columns.values)
     pp(data2.head(10))
     
-    plt.scatter(data2.STD.values[data2.STD > 0.0], data2.LogReturn_MEAN_L1.values[data2.STD > 0.0], alpha=0.5)
+    plt.scatter(data2.STD.values[data2.STD > 0.0], data2.LogReturn_MEAN_F1.values[data2.STD > 0.0], alpha=0.5)
     plt.title('Scatter plot of derived data at intervals')
     plt.xlabel('data2.STD')
-    plt.ylabel('data2.LogReturn_MEAN_L1')
+    plt.ylabel('data2.LogReturn_MEAN_F1')
     plt.show()

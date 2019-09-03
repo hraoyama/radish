@@ -53,14 +53,14 @@ def test_data_processor_convenience_interface():
                        ['HIGH', 'LOW', 'MEAN', 'MEDIAN', 'OPEN', 'CLOSE', 'STD']). \
         extract_returns(column_name="MEAN", return_type="LOG_RETURN", new_column_name="LogReturn_MEAN"). \
         extract_returns(column_name="STD", return_type="LOG_RETURN", new_column_name="LogReturn_STD"). \
-        shift_to_new_column('L1_LogReturn_MEAN', 'LogReturn_MEAN', -1). \
-        shift_to_new_column('L1_LogReturn_STD', 'LogReturn_STD', -1) \
-        (lambda x: x[~np.isnan(x.LogReturn_STD) & ~np.isnan(x.STD) & ~np.isnan(x.L1_LogReturn_STD)]).data
+        shift_to_new_column('F1_LogReturn_MEAN', 'LogReturn_MEAN', -1). \
+        shift_to_new_column('F1_LogReturn_STD', 'LogReturn_STD', -1) \
+        (lambda x: x[~np.isnan(x.LogReturn_STD) & ~np.isnan(x.STD) & ~np.isnan(x.F1_LogReturn_STD)]).data
     
     pp(data2.columns.values)
     pp(data2.head(10))
     
-    plt.scatter(data2.STD.values[data2.STD > 0.0], data2.L1_LogReturn_MEAN.values[data2.STD > 0.0], alpha=0.5)
+    plt.scatter(data2.STD.values[data2.STD > 0.0], data2.F1_LogReturn_MEAN.values[data2.STD > 0.0], alpha=0.5)
     plt.title('Scatter plot of derived data at intervals')
     plt.xlabel('data2.STD')
     plt.ylabel('data2.L1_LogReturn_MEAN')
