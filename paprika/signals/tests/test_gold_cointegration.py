@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 
 
 def test_gold_cointegration():
+    
+    DataType.extend("EOD_PRICE")
 
     tckr1, tckr2 = 'GLD', 'GDX'
     gold_feed = Feed('GOLD_FEED', datetime(1950, 7, 1), datetime(2050, 1, 1))

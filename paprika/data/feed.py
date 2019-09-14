@@ -49,9 +49,13 @@ class Feed:
         
         uploaded_name = self.name + "_" + str(data_type) + "_" + uuid.uuid4().hex
         
-        if df.shape[0] == 0:
+        if df is None:
+            raise ValueError(
+                f"No data found matching {str(list_of_patterns)} for type {data_type}. Load data if available first.")
+        
+        if df.empty or df.shape[0] == 0:
             return None
-            # no data for this time span
+            # no data for this time span but this name was found
         
         df = df.sort_index()  # this is important when combining sources in the same data frame
         
@@ -60,11 +64,11 @@ class Feed:
         # df = df.loc[~df.index.duplicated(keep='first')]
         
         DataChannel.upload_to_redis(df, uploaded_name)
-
+        
         self.feed_symbols.extend(matched_symbols)
         self.feed_symbols = list(set(self.feed_symbols))
         # necessary to download in case of append
-        self.data_dictionary[data_type] = df #DataChannel.download(uploaded_name)
+        self.data_dictionary[data_type] = df  # DataChannel.download(uploaded_name)
         
         pass
     
