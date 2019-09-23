@@ -27,11 +27,14 @@ class DataChannel:
                             is_overwrite: bool = True
                             ):
         table_name = table_name.upper().strip()
-        df = DataChannel.download(table_name, use_redis=False)  # need to make sure it was uploaded to temporary 'feeds'
+        df = DataChannel.download(table_name, use_redis=False)
+        # could have been uploaded to either the temporary 'feeds' or the redis DB
         if df is None:
-            raise KeyError(
-                f'{table_name} does not exist in {DataChannel.DEFAULT_ARCTIC_SOURCE_NAME} on ' +
-                f'{DataChannel.DEFAULT_ARCTIC_HOST}')
+            df = DataChannel.download(table_name, use_redis=True)
+            if df is None:
+                raise KeyError(
+                    f'{table_name} does not exist in {DataChannel.DEFAULT_ARCTIC_SOURCE_NAME} on ' +
+                    f'{DataChannel.DEFAULT_ARCTIC_HOST} or in the REDIS DB')
         else:
             DataChannel.upload(df, table_name, is_overwrite, arctic_source_name='mdb',
                                arctic_host=DataChannel.DEFAULT_ARCTIC_HOST, put_in_redis=False)
