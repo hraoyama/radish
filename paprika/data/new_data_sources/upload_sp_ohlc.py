@@ -38,35 +38,37 @@ def main():
     vol_estimate = utils.returns_calculator(cl, 1).rolling(90).std().shift(1)
     # select stocks near the market open whose returns from their previous day's low to today's open are lower
     # than one standard deviation
-    buy_price = lo.shift(1) * (1 + entry_zscore * vol_estimate)
-    ret_gap = (op - lo.shift(1)) / lo.shift(1)
+    lo_shift1 = lo.shift(1).values
+    
+    buy_price = lo_shift1 * (1 + entry_zscore * vol_estimate.values)
+    ret_gap = (op - lo_shift1) / lo_shift1
     ma = cl.shift(1).rolling(lookback).mean()
     
     DataType.extend("CLOSE_PRICE")
     table_namex = DataChannel.name_to_data_type("SP_CLOSE", DataType.CLOSE_PRICE)
-    DataChannel.upload(cl, table_namex)
+    DataChannel.upload(cl, table_namex, put_in_redis=False)
     DataChannel.upload_to_permanent(table_namex)
 
     DataType.extend("OPEN_PRICE")
     table_name1 = DataChannel.name_to_data_type("SP_OPEN", DataType.OPEN_PRICE)
-    DataChannel.upload(op, table_name1)
+    DataChannel.upload(op, table_name1, put_in_redis=False)
     # following stores it in DB permanently - only do this if you are sure you need to keep this data
     # usage of this data happens in test_buy_on_gap.py
     DataChannel.upload_to_permanent(table_name1)
     
     DataType.extend("BUY_PRICE")
     table_name2 = DataChannel.name_to_data_type("SP_BUY", DataType.BUY_PRICE)
-    DataChannel.upload(buy_price, table_name2)
+    DataChannel.upload(buy_price, table_name2, put_in_redis=False)
     DataChannel.upload_to_permanent(table_name2)
     
     DataType.extend("RETURN_GAP")
     table_name3 = DataChannel.name_to_data_type("SP_RETURN_GAP", DataType.RETURN_GAP)
-    DataChannel.upload(ret_gap, table_name3)
+    DataChannel.upload(ret_gap, table_name3, put_in_redis=False)
     DataChannel.upload_to_permanent(table_name3)
     
     DataType.extend("CLOSE_MA")
     table_name4 = DataChannel.name_to_data_type("SP_CLOSE_MA", DataType.CLOSE_MA)
-    DataChannel.upload(ma, table_name4)
+    DataChannel.upload(ma, table_name4, put_in_redis=False)
     DataChannel.upload_to_permanent(table_name4)
 
 

@@ -10,6 +10,8 @@ def test_order_manager():
     tc = TransactionCost(TransactionCostType.FIXED, 0.01)
     order_manager = SimpleOrderManager(tc)
     fills, remaining_order = order_manager.accept_order(order, None, None)
+    print(fills)
+    print(remaining_order)
     assert remaining_order is None
     
     # fills, remaining_order = order_manager.accept_order(order, None, None)
