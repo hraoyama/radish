@@ -66,7 +66,7 @@ class HistoricalDataFetcher:
                                 field_columns: List[str] = None,
                                 between_times=None):
 
-        pattern_list = list(map(re.compile, pattern_list_str))
+        pattern_list = [re.compile(x) for x in pattern_list_str]
         symbols_in_arctic = [symbol_match for symbol_match in self.available_feeds for plist in pattern_list if
                              plist.match(symbol_match)]
         if not symbols_in_arctic:

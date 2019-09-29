@@ -1,14 +1,8 @@
 import pandas as pd
 import os
-import matplotlib.pyplot as plt
 
-from datetime import datetime
 from paprika.data.data_type import DataType
 from paprika.data.data_channel import DataChannel
-from paprika.data.feed import Feed
-from paprika.data.feed_filter import TimeFreqFilter, Filtration, TimePeriod
-from paprika.signals.gold_cointegration import GoldSpread
-from paprika.utils import utils
 
 PATH = r'../../../resources/data/'
 

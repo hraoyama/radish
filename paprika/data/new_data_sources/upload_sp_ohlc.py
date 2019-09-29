@@ -1,13 +1,9 @@
 import pandas as pd
 import numpy as np
 import os
-import matplotlib.pyplot as plt
 
-from datetime import datetime
 from paprika.data.data_type import DataType
 from paprika.data.data_channel import DataChannel
-from paprika.data.feed import Feed
-from paprika.signals.buy_on_gap_signal import BuyOnGap
 from paprika.utils import utils
 
 PATH = r'../../../resources/data/'
