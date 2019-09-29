@@ -17,6 +17,8 @@ class DataChannel:
     DEFAULT_ARCTIC_SOURCE_NAME = 'feeds'
     DEFAULT_ARCTIC_HOST = 'localhost'
 
+    PERMANENT_ARCTIC_SOURCE_NAME = 'mdb'
+
     @staticmethod
     def name_to_data_type(name: str, data_type: DataType):
         name = name.upper().strip()
@@ -27,7 +29,7 @@ class DataChannel:
                             is_overwrite: bool = True
                             ):
         table_name = table_name.upper().strip()
-        df = DataChannel.download(table_name, use_redis=False)
+        df = DataChannel.download(table_name, use_redis=True)
         # could have been uploaded to either the temporary 'feeds' or the redis DB
         if df is None:
             df = DataChannel.download(table_name, use_redis=True)

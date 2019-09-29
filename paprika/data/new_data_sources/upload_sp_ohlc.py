@@ -41,36 +41,55 @@ def main():
     lo_shift1 = lo.shift(1).values
     
     buy_price = lo_shift1 * (1 + entry_zscore * vol_estimate.values)
+    buy_price = pd.DataFrame(buy_price, index=lo.index)
+    
     ret_gap = (op - lo_shift1) / lo_shift1
     ma = cl.shift(1).rolling(lookback).mean()
     
     DataType.extend("CLOSE_PRICE")
     table_namex = DataChannel.name_to_data_type("SP_CLOSE", DataType.CLOSE_PRICE)
-    DataChannel.upload(cl, table_namex, put_in_redis=False)
-    DataChannel.upload_to_permanent(table_namex)
-
+    
+    # even though uploading to redis only would seem quicker,
+    # it is much slower in putting it from Redis to the permanent store because Redis reads are element-wise!
+    # DataChannel.upload_to_redis(cl, table_namex)
+    # DataChannel.upload_to_permanent(table_namex)
+    DataChannel.upload(cl, table_namex,
+                       is_overwrite=True,
+                       arctic_source_name=DataChannel.PERMANENT_ARCTIC_SOURCE_NAME,
+                       put_in_redis=False)
+    print(f'Uploaded {table_namex}')
+    
     DataType.extend("OPEN_PRICE")
     table_name1 = DataChannel.name_to_data_type("SP_OPEN", DataType.OPEN_PRICE)
-    DataChannel.upload(op, table_name1, put_in_redis=False)
-    # following stores it in DB permanently - only do this if you are sure you need to keep this data
-    # usage of this data happens in test_buy_on_gap.py
-    DataChannel.upload_to_permanent(table_name1)
-    
+    DataChannel.upload(op, table_name1,
+                       is_overwrite=True,
+                       arctic_source_name=DataChannel.PERMANENT_ARCTIC_SOURCE_NAME,
+                       put_in_redis=False)
+    print(f'Uploaded {table_name1}')
+
     DataType.extend("BUY_PRICE")
     table_name2 = DataChannel.name_to_data_type("SP_BUY", DataType.BUY_PRICE)
-    DataChannel.upload(buy_price, table_name2, put_in_redis=False)
-    DataChannel.upload_to_permanent(table_name2)
-    
+    DataChannel.upload(buy_price, table_name2,
+                       is_overwrite=True,
+                       arctic_source_name=DataChannel.PERMANENT_ARCTIC_SOURCE_NAME,
+                       put_in_redis=False)
+    print(f'Uploaded {table_name2}')
+
     DataType.extend("RETURN_GAP")
     table_name3 = DataChannel.name_to_data_type("SP_RETURN_GAP", DataType.RETURN_GAP)
-    DataChannel.upload(ret_gap, table_name3, put_in_redis=False)
-    DataChannel.upload_to_permanent(table_name3)
-    
+    DataChannel.upload(ret_gap, table_name3,
+                       is_overwrite=True,
+                       arctic_source_name=DataChannel.PERMANENT_ARCTIC_SOURCE_NAME,
+                       put_in_redis=False)
+    print(f'Uploaded {table_name3}')
+
     DataType.extend("CLOSE_MA")
     table_name4 = DataChannel.name_to_data_type("SP_CLOSE_MA", DataType.CLOSE_MA)
-    DataChannel.upload(ma, table_name4, put_in_redis=False)
-    DataChannel.upload_to_permanent(table_name4)
-
+    DataChannel.upload(ma, table_name4,
+                       is_overwrite=True,
+                       arctic_source_name=DataChannel.PERMANENT_ARCTIC_SOURCE_NAME,
+                       put_in_redis=False)
+    print(f'Uploaded {table_name4}')
 
 if __name__ == "__main__":
     main()
