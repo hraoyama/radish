@@ -17,5 +17,8 @@ class DataType(Enum):
     
     @classmethod
     def extend(cls, name):
-        value = len(list(cls))
-        extend_enum(cls, name, value)
+        if name not in list(cls):
+            value = len(list(cls))
+            extend_enum(cls, name, value)
+        else:
+            raise ValueError(f'{name} already exists as a DataType')
