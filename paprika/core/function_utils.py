@@ -22,9 +22,7 @@ def add_return_to_dict_or_pandas_col_decorator(return_dict):
         def wrapper(*args, **kwargs):
             nonlocal return_dict
             return_dict[args[0]] = func(*args, **kwargs)
-        
         return wrapper
-    
     return actual_decorator
 
 

@@ -45,4 +45,3 @@ def test_alloc_Kelly():
     temp = np.dot(F, np.dot(C, F))
     sharp = np.sqrt(np.abs(temp)) * np.sign(temp)
     print(f'Best possible Sharpe from this portfolio is {str(sharp)} according to Kelly criterion')
-    
