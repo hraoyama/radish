@@ -74,8 +74,10 @@ def main():
         tag = dir_to_load.strip().upper()
 
         func2 = partial(persist_in_db, tag=tag, df=df, lib=lib, lib_name=lib_name)
-        with multiprocessing.Pool(processes=n_processes) as pool:
-            pool.imap(func2, all_products)
+        # with multiprocessing.Pool(processes=n_processes) as pool:
+        #    pool.imap(func2, all_products)
+        for product in all_products:
+            func2(product)
 
 
 if __name__ == '__main__':
