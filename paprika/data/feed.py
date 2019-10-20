@@ -36,7 +36,7 @@ class Feed:
         return_str = return_str + f'{str(self.feed_symbols)}'
         return return_str
     
-    def set_feed(self, list_of_patterns, data_type: DataType):
+    def set_feed(self, list_of_patterns, data_type, how='outer'):
         
         if isinstance(list_of_patterns, str):
             list_of_patterns = [list_of_patterns]
@@ -45,7 +45,8 @@ class Feed:
             self.fetcher.generate_simple_pattern_list(list_of_patterns, data_type),
             self.start_datetime,
             self.end_datetime,
-            add_symbol=True)
+            add_symbol=True,
+            shared_index=(how == 'inner'))
         
         uploaded_name = self.name + "_" + str(data_type) + "_" + uuid.uuid4().hex
         

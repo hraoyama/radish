@@ -22,21 +22,23 @@ def add_return_to_dict_or_pandas_col_decorator(return_dict):
         def wrapper(*args, **kwargs):
             nonlocal return_dict
             return_dict[args[0]] = func(*args, **kwargs)
+        
         return wrapper
+    
     return actual_decorator
 
 
-def add_return_to_pandas_indexed_col_decorator(return_data_frame):
+def add_return_to_pandas_indexed_col_decorator(return_object):
     def actual_decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            nonlocal return_data_frame
-            if return_data_frame.shape[0] > 0:
-                # return_data_frame = pd.concat([return_data_frame, func(*args, **kwargs)], join='inner', axis=1)
-                return_data_frame = pd.merge(return_data_frame, func(*args, **kwargs),
-                                             how='outer', left_index=True, right_index=True)
+            nonlocal return_object
+            if return_object.frame is not None:
+                return_object.frame = pd.merge(return_object.frame, func(*args, **kwargs), how='outer', left_index=True,
+                                               right_index=True)
             else:
-                return_data_frame = func(*args, **kwargs)
+                return_object.frame = func(*args, **kwargs)
+        
         return wrapper
     
     return actual_decorator
