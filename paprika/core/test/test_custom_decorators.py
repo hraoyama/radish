@@ -1,6 +1,7 @@
-from paprika.core.function_utils import log_decorator, add_return_to_dict_or_pandas_col_decorator
+from paprika.core.function_utils import log_decorator, add_return_to_dict_or_pandas_col_decorator, add_return_to_pandas_indexed_col_decorator
 
 import pandas as pd
+import numpy as np
 
 
 def test_custom_decorators():
@@ -25,3 +26,4 @@ def test_custom_decorators():
     f3('thrity', 30)
     f3('three', 3)
     print(accumulate_df)
+

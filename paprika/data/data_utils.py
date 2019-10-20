@@ -24,11 +24,11 @@ def get_data_frame_from_csv(ticker: str, input_path):
     return ts1
 
 
-def new_data_upload(df, ticker ,data_type_str, to_feeds=False, to_redis=False, to_permanent=True):
+def new_data_upload(df, ticker, data_type_str, to_feeds=False, to_redis=False, to_permanent=True):
     if df is not None:
         if data_type_str not in [str(x) for x in DataType]:
             DataType.extend(data_type_str.upper().strip())
-        table_name = DataChannel.name_to_data_type(ticker.upper().strip(), DataType(len(DataType)-1))
+        table_name = DataChannel.name_to_data_type(ticker.upper().strip(), DataType(len(DataType) - 1))
         print(f'Attempting to upload {table_name} as DataType.{data_type_str.upper().strip()}')
         if to_feeds:
             return DataChannel.upload(df, table_name, put_in_redis=to_redis)
