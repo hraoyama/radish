@@ -153,7 +153,7 @@ class Feed:
         for data_type in self.data_dictionary.keys():
             # https://stackoverflow.com/questions/49830069/efficiently-extract-rows-from-a-pandas-dataframe-ignoring-missing-index-labels
             to_dispatch_for_data_type[data_type] = self.data_dictionary[data_type].loc[
-                self.data_dictionary[data_type].index.intersection(sorted_indices)]
+                set(self.data_dictionary[data_type].index).intersection(sorted_indices)]
         
         for index in sorted_indices:
             # usually this is only 1 data type matching a specific time, seems like a lot of work for edge cases

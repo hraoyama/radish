@@ -90,9 +90,9 @@ class HistoricalDataFetcher:
         if not shared_index:
             df_all = functools.reduce(lambda df1, df2: pd.concat([df1, df2], ignore_index=False, sort=True), dfs)
         else:
-            df_all = functools.reduce(lambda df1, df2: pd.concat(
-                [df1[df1.index.intersection(df2.index)], df2[df2.index.intersection(df1.index)]],
-                ignore_index=False, sort=True), dfs)
+            df_all = pd.DataFrame.drop_duplicates(functools.reduce(lambda df1, df2: pd.concat(
+                [df1.loc[df1.index.intersection(df2.index)], df2.loc[df2.index.intersection(df1.index)]],
+                ignore_index=False, sort=True), dfs))
 
         df_all = df_all.between_time(between_times[0], between_times[1]) if between_times is not None else df_all
         
