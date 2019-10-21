@@ -27,7 +27,7 @@ def main():
     DataChannel.upload(ts, table_name)
     
     # following stores it in DB permanently - only do this if you are sure you need to keep this data
-    # usage of this data happens in test_gold_cointegration.py
+    # usage of this data happens in test_signal_close_px_cointegration.py
     DataChannel.upload_to_permanent(table_name)
 
     # clear out any feeds in the feeds cache AND in Redis!
