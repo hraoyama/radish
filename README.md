@@ -3,21 +3,66 @@ Backtesting and research  platform
 
 ## Required
 
-1) install the following:
+### For radish framework
 
-https://arctic.readthedocs.io/en/latest/
-(will require mongodb installation as well but detailed in above)
+   1) install the following:
 
-https://redis.io/
+   * Anaconda python 3.6+ with pyCharm IDE and jupyter notebook
+   * https://arctic.readthedocs.io/en/latest/ (will require mongodb installation as well but detailed in above)
+   * https://redis.io/
+   * https://www.atlassian.com/git/tutorials/install-git
+   * https://confluence.atlassian.com/get-started-with-sourcetree/install-sourcetree-847359094.html
 
-https://www.atlassian.com/git/tutorials/install-git
+   2) get a free github account
+   3) get to know some github: https://www.youtube.com/watch?v=HVsySz-h9r4
 
-https://confluence.atlassian.com/get-started-with-sourcetree/install-sourcetree-847359094.html
+### For notebooks
 
-2) get a free github account
-3) get to know some github: https://www.youtube.com/watch?v=HVsySz-h9r4
+   1) install R (rproject.org) 
+   2) install Rtools. In R:
+    ```
+    install.packages(installr)
+    require(installr)
+    install.Rtools() 
+    ```
+    see https://www.rdocumentation.org/packages/installr/versions/0.22.0/topics/install.Rtools
+    
+   3) Edit your enviroment variables to have an R_TOOLS variable to have the Rtools path (e.g. C:\Rtools) and an R_TOOLS_PATH with the rtools subdirectories (e.g. %R_TOOLS%\bin;%R_TOOLS%\gcc-4.6.3\bin)
 
-## API:
+   4) open an anaconda prompt and install the relevant packages:
+    ```
+    pip install rtools
+    conda install rpy2
+    ```
+    rpy2 does not seem to play well with the pip installation, conda seems to work fine for some reason.
+
+   5) open a python notebook and execute:
+    ```
+    %load_ext rpy2.ipython
+    ```
+    the default for the notebook is python, if you want to use R the new cell in the notebook should start with:
+    ``` %%R ```
+    Here is an example of two cells:
+    ```
+    %load_ext rpy2.ipython
+
+   import pandas as pd
+   df = pd.DataFrame({
+       'cups_of_coffee': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+       'productivity': [2, 5, 6, 8, 9, 8, 0, 1, 0, -1]
+   })
+   ```
+   Second cell:
+   ```
+   %%R -i df -w 5 -h 5 --units in -r 200
+   # import df from global environment
+   # make default figure size 5 by 5 inches with 200 dpi resolution
+
+   install.packages("ggplot2", repos='http://cran.us.r-project.org', quiet=TRUE)
+   library(ggplot2)
+   ggplot(df, aes(x=cups_of_coffee, y=productivity)) + geom_line()
+   ```
+
 
    
 
