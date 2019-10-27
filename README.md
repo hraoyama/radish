@@ -21,9 +21,7 @@ Backtesting and research  platform
    1) install R (rproject.org) 
    2) install Rtools. In R:
     ```
-    install.packages(installr)
-    require(installr)
-    install.Rtools() 
+    install.packages(installr);require(installr);install.Rtools() 
     ```
     see https://www.rdocumentation.org/packages/installr/versions/0.22.0/topics/install.Rtools
     
@@ -45,7 +43,7 @@ Backtesting and research  platform
     ```
    ```
    %%R -i df -w 5 -h 5 --units in -r 200
-   install.packages("ggplot2", repos='http://cran.us.r-project.org', quiet=TRUE)
+   install.packages("ggplot2",quiet=TRUE)
    library(ggplot2)
    ggplot(df, aes(x=cups_of_coffee, y=productivity)) + geom_line()
    ```
