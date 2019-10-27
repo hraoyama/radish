@@ -27,11 +27,7 @@ Backtesting and research  platform
     
    3) Edit your enviroment variables to have an R_TOOLS variable to have the Rtools path (e.g. C:\Rtools) and an R_TOOLS_PATH with the rtools subdirectories (e.g. %R_TOOLS%\bin;%R_TOOLS%\gcc-4.6.3\bin)
 
-   4) open an anaconda prompt and install the relevant packages:
-    ```
-    pip install rtools
-    conda install rpy2
-    ```
+   4) open an anaconda prompt and install the relevant packages:```pip install rtools``` followed by ```conda install rpy2```.
     rpy2 does not seem to play well with the pip installation, conda seems to work fine for some reason.
 
    5) open a python notebook and execute:```%load_ext rpy2.ipython```. The default for the notebook is python, if you want to use R the new cell in the notebook should start with ```%%R```.
