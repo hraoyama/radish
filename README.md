@@ -36,32 +36,21 @@ Backtesting and research  platform
     ```
     rpy2 does not seem to play well with the pip installation, conda seems to work fine for some reason.
 
-   5) open a python notebook and execute:
+   5) open a python notebook and execute:```%load_ext rpy2.ipython```. The default for the notebook is python, if you want to use R the new cell in the notebook should start with ```%%R```.
+    
     ```
     %load_ext rpy2.ipython
+    import pandas as pd
+    df = pd.DataFrame({'cups_of_coffee': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],'productivity': [2, 5, 6, 8, 9, 8, 0, 1, 0, -1]})
     ```
-    the default for the notebook is python, if you want to use R the new cell in the notebook should start with:
-    ``` %%R ```
-    Here is an example of two cells:
-    ```
-    %load_ext rpy2.ipython
-
-   import pandas as pd
-   df = pd.DataFrame({
-       'cups_of_coffee': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
-       'productivity': [2, 5, 6, 8, 9, 8, 0, 1, 0, -1]
-   })
-   ```
-   Second cell:
    ```
    %%R -i df -w 5 -h 5 --units in -r 200
-   # import df from global environment
-   # make default figure size 5 by 5 inches with 200 dpi resolution
-
    install.packages("ggplot2", repos='http://cran.us.r-project.org', quiet=TRUE)
    library(ggplot2)
    ggplot(df, aes(x=cups_of_coffee, y=productivity)) + geom_line()
    ```
+   The second cell imports ```df```  from global environment and makes the default figure size 5 by 5 inches with 200 dpi resolution.
+
 
 
    
