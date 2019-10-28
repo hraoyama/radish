@@ -21,7 +21,7 @@ Backtesting and research  platform
    1) install R (rproject.org), make sure to have an ```R_HOME``` environment variable (e.g. C:\Program Files\R\R-3.4.3) and an ```R_PATH``` environment variable (e.g. %R_HOME%\bin\x64).
    2) install Rtools. In R:
     ```
-    install.packages(installr);require(installr);install.Rtools() 
+    install.packages("installr");require(installr);install.Rtools() 
     ```
     see https://www.rdocumentation.org/packages/installr/versions/0.22.0/topics/install.Rtools
     
