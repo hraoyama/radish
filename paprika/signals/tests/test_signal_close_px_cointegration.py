@@ -25,9 +25,11 @@ def test_gold_cointegration():
     
     gold_signal.run()
     print(gold_signal.positions.head())
+    gold_signal_data = gold_signal.signal_data()
+
     positions = gold_signal.positions[['GLD', 'GDX']].fillna(method='ffill').values
     prices = gold_signal.prices
-    
+
     train_idx = 252  # window where above parameters were estimated
     
     returns = utils.returns_calculator(prices[tickers], 1)
