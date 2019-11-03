@@ -11,19 +11,34 @@ from paprika.core.base_signal import Signal
 
 
 class SignalData:
-    _data = defaultdict(pd.DataFrame)
+    RESULTS_STRING = "RESULTS"
 
     def __init__(self, name: str, data: List[Tuple[str, pd.DataFrame]]):
+        _data = defaultdict(pd.DataFrame)
         self._name = name
         if isinstance(data, dict):
             _data = data
         else:
             for key, value_frame in data:
-                self._data[key] = self._data[key].append(value_frame, sort=True)
-                # pd.merge(self._data[key], value_frame, how='outer', left_index=True, right_index=True)
+                self.add(key, value_frame, ignore_index=False)
 
     def add(self, key_str, data_frame, ignore_index=False):
         self._data[key_str] = self._data[key_str].append(data_frame, ignore_index=ignore_index, sort=True)
+        # pd.merge(self._data[key], value_frame, how='outer', left_index=True, right_index=True)
+        self._data[SignalData.RESULTS_STRING] = self._data[SignalData.RESULTS_STRING].append(self._data[key_str],
+                                                                                             sort=True)
+
+    def __add__(self, other):
+        if isinstance(other, SignalData):
+            for key, value_frame in other._data:
+                self.add(key, value_frame, ignore_index=False)
+            return self
+        else:
+            raise ValueError(
+                f'"+" operator expected instance of {str(self.__class__.__name__)} but received instance of {str(other.__name__)}')
+
+    def get_indices(self):
+        return self._data[SignalData.RESULTS_STRING].index
 
     def get_frame(self, key_str):
         return self._data[key_str]
