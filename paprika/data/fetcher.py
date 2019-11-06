@@ -1,7 +1,7 @@
 from paprika.utils.time import millis_to_datetime
 
 from datetime import datetime
-from typing import List, Union
+from typing import List, Union, Optional
 
 import pandas as pd
 import redis
@@ -60,8 +60,8 @@ class HistoricalDataFetcher:
     
     def fetch_from_pattern_list(self,
                                 pattern_list_str: List[str],
-                                start_time: Union[int, datetime],
-                                end_time: Union[int, datetime],
+                                start_time: Optional[Union[int, datetime]] = None,
+                                end_time: Optional[Union[int, datetime]] = None,
                                 add_symbol: bool = True,
                                 field_columns: List[str] = None,
                                 between_times=None,
@@ -103,8 +103,8 @@ class HistoricalDataFetcher:
     
     def fetch(self,
               symbol: str,
-              start_time: Union[int, datetime],
-              end_time: Union[int, datetime],
+              start_time: Optional[Union[int, datetime]] = None,
+              end_time: Optional[Union[int, datetime]] = None,
               add_symbol: bool = True,
               fields: List[str] = None):
         
@@ -116,9 +116,23 @@ class HistoricalDataFetcher:
             end_time = millis_to_datetime(end_time)
         
         key = symbol
-        redis_key = key + \
-                    f".{start_time.strftime(self.DATETIME_FORMAT)}.{end_time.strftime(self.DATETIME_FORMAT)}." + \
-                    ".".join(map(str, fields))
+        if start_time and end_time:
+            redis_key = key + \
+                        f".{start_time.strftime(self.DATETIME_FORMAT)}.{end_time.strftime(self.DATETIME_FORMAT)}." + \
+                        ".".join(map(str, fields))
+        elif start_time:
+            redis_key = key + \
+                        f".{start_time.strftime(self.DATETIME_FORMAT)}.None." + \
+                        ".".join(map(str, fields))
+        elif end_time:
+            redis_key = key + \
+                        f".None.{end_time.strftime(self.DATETIME_FORMAT)}." + \
+                        ".".join(map(str, fields))
+        else:
+            redis_key = key + \
+                        f".None.None." + \
+                        ".".join(map(str, fields))
+
         msg = self.redis.get(redis_key)
         
         if msg:
@@ -154,8 +168,8 @@ class HistoricalDataFetcher:
     
     def fetch_orderbook(self,
                         symbol: str,
-                        start_time: Union[int, datetime],
-                        end_time: Union[int, datetime],
+                        start_time: Optional[Union[int, datetime]] = None,
+                        end_time: Optional[Union[int, datetime]] = None,
                         add_symbol: bool = True,
                         fields: List[str] = None):
         return self.fetch(f'{symbol}.OrderBook', start_time, end_time, add_symbol, fields)
