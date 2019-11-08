@@ -177,6 +177,14 @@ class HistoricalDataFetcher:
                         fields: List[str] = None):
         return self.fetch(f'{symbol}.OrderBook', start_time, end_time, add_symbol, fields)
 
+    def fetch_trade(self,
+                    symbol: str,
+                    start_time: Optional[Union[int, datetime]] = None,
+                    end_time: Optional[Union[int, datetime]] = None,
+                    add_symbol: bool = True,
+                    fields: List[str] = None):
+        return self.fetch(f'{symbol}.Trade', start_time, end_time, add_symbol, fields)
+
     def fetch_price(self,
                     symbol: str,
                     timestamp: Optional[Union[int, datetime]],
