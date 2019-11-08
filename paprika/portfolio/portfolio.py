@@ -1,5 +1,5 @@
 from numbers import Real
-from typing import Dict, List, NamedTuple, Tuple
+from typing import Dict, List, NamedTuple, Tuple, Union
 from datetime import datetime
 
 from absl import logging
@@ -31,12 +31,22 @@ class Portfolio:
     def base_currency(self):
         return self._base_currency
 
+    def clear_sub_portfolio(self):
+        self._sub_portfolio = {}
+
     @property
     def balance(self):
         total_balance = self._balance.readonly()
         for _, sub_portfolio in self._sub_portfolio.items():
             total_balance += sub_portfolio.balance
         return total_balance
+
+    @balance.setter
+    def balance(self, new_balance: Union[Dict[str, Real], Dist]):
+        if isinstance(new_balance, Dict):
+            self._balance = Dist(self._convert_and_clean_up(new_balance))
+        elif isinstance(new_balance, Dist):
+            self._balance = new_balance
 
     @property
     def trades(self):
@@ -55,7 +65,7 @@ class Portfolio:
         return self._sub_portfolio[name]
 
     def list_sub_portfolio(self):
-        return self._sub_portfolio.keys()
+        return list(self._sub_portfolio.keys())
 
     def copy_balances(self) -> Dist:
         return self.balance.readonly()
