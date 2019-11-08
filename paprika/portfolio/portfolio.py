@@ -48,10 +48,14 @@ class Portfolio:
     def __repr__(self):
         return (f'Portfolio(name={self.name}, '
                 f'base_currency={self.base_currency}, '
-                f'balance={self.balance})')
+                f'balance={self.balance})',
+                f'sub portfolios={self._sub_portfolio.keys()})')
 
     def __getitem__(self, name: str) -> 'Portfolio':
         return self._sub_portfolio[name]
+
+    def list_sub_portfolio(self):
+        return self._sub_portfolio.keys()
 
     def copy_balances(self) -> Dist:
         return self.balance.readonly()
@@ -86,12 +90,12 @@ class Portfolio:
         return value_dist
 
     def __add__(self, value: 'Portfolio') -> 'Portfolio':
-        assert(self.base_currency == value.base_currency)
+        assert (self.base_currency == value.base_currency)
         new_balance = self.balance + value.balance
         return Portfolio(self.base_currency, new_balance)
 
     def __sub__(self, value: 'Portfolio') -> 'Portfolio':
-        assert(self.base_currency == value.base_currency)
+        assert (self.base_currency == value.base_currency)
         new_balance = self.balance - value.balance
         return Portfolio(self.base_currency, new_balance)
 
@@ -101,6 +105,7 @@ class Portfolio:
             symbol: float_type()(amount)
             for symbol, amount in balance.items() if not isclose(float_type()(amount), 0)
         }
+
 
 # class Portfolio:
 #     def __init__(self,
