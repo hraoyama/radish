@@ -185,45 +185,64 @@ class HistoricalDataFetcher:
                     fields: List[str] = None):
         return self.fetch(f'{symbol}.Trade', start_time, end_time, add_symbol, fields)
 
-    def fetch_price(self,
-                    symbol: str,
-                    timestamp: Optional[Union[int, datetime]],
-                    start_time: Optional[Union[int, datetime]] = None,
-                    end_time: Optional[Union[int, datetime]] = None,
-                    add_symbol: bool = True,
-                    fields: List[str] = None):
-        price = self.calc_price_from_orderbook(symbol, timestamp, start_time, end_time, add_symbol, fields)
-        if price:
-            return price
-        else:
-            return self.calc_price_from_trade(symbol, timestamp, start_time, end_time, add_symbol, fields)
+    def fetch_data_at_timestamp(self,
+                                symbol: str,
+                                timestamp: Optional[Union[int, datetime]],
+                                start_time: Optional[Union[int, datetime]] = None,
+                                end_time: Optional[Union[int, datetime]] = None,
+                                add_symbol: bool = True,
+                                fields: List[str] = None):
 
-    def calc_price_from_trade(self,
-                              symbol: str,
-                              timestamp: Optional[Union[int, datetime]],
-                              start_time: Optional[Union[int, datetime]] = None,
-                              end_time: Optional[Union[int, datetime]] = None,
-                              add_symbol: bool = True,
-                              fields: List[str] = None):
-        df = self.fetch(f'{symbol}.Trade', start_time, end_time, add_symbol, fields)
-        if df is not None:
-            df_timestamp = df.loc[df.index[df.index.get_loc(timestamp, method='nearest')]]
-            return df_timestamp[TradeColumnName.Price]
+        df = self.fetch_orderbook_at_timestamp(symbol, timestamp, start_time, end_time, add_symbol, fields)
+        if df:
+            return df
         else:
-            return None
+            df = self.fetch_trade_at_timestamp(symbol, timestamp, start_time, end_time, add_symbol, fields)
+            return df
 
-    def calc_price_from_orderbook(self,
-                                  symbol: str,
-                                  timestamp: Optional[Union[int, datetime]],
-                                  start_time: Optional[Union[int, datetime]] = None,
-                                  end_time: Optional[Union[int, datetime]] = None,
-                                  add_symbol: bool = True,
-                                  fields: List[str] = None):
+    def fetch_orderbook_at_timestamp(self,
+                                     symbol: str,
+                                     timestamp: Optional[Union[int, datetime]],
+                                     start_time: Optional[Union[int, datetime]] = None,
+                                     end_time: Optional[Union[int, datetime]] = None,
+                                     add_symbol: bool = True,
+                                     fields: List[str] = None
+                                     ):
         df = self.fetch(f'{symbol}.OrderBook', start_time, end_time, add_symbol, fields)
         if df is not None:
             df_timestamp = df.loc[df.index[df.index.get_loc(timestamp, method='nearest')]]
+            return df_timestamp
+        else:
+            return None
+
+    def fetch_trade_at_timestamp(self,
+                                 symbol: str,
+                                 timestamp: Optional[Union[int, datetime]],
+                                 start_time: Optional[Union[int, datetime]] = None,
+                                 end_time: Optional[Union[int, datetime]] = None,
+                                 add_symbol: bool = True,
+                                 fields: List[str] = None
+                                 ):
+
+        df = self.fetch(f'{symbol}.Trade', start_time, end_time, add_symbol, fields)
+        if df is not None:
+            df_timestamp = df.loc[df.index[df.index.get_loc(timestamp, method='nearest')]]
+            return df_timestamp
+        else:
+            return None
+
+    def fetch_price_at_timestamp(self,
+                                 symbol: str,
+                                 timestamp: Optional[Union[int, datetime]],
+                                 start_time: Optional[Union[int, datetime]] = None,
+                                 end_time: Optional[Union[int, datetime]] = None,
+                                 add_symbol: bool = True,
+                                 fields: List[str] = None):
+        df_timestamp = self.fetch_orderbook_at_timestamp(symbol, timestamp, start_time, end_time, add_symbol, fields)
+        if df_timestamp:
             bid1 = df_timestamp[OrderBookColumnName.Bid_Px_Lev_0]
             ask1 = df_timestamp[OrderBookColumnName.Ask_Px_Lev_0]
             return (bid1 + ask1) / 2.0
         else:
-            return None
+            df_timestamp = self.fetch_trade_at_timestamp(symbol, timestamp, start_time, end_time, add_symbol, fields)
+            return df_timestamp[TradeColumnName.Price]
