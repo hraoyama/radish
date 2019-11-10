@@ -10,6 +10,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
+
 def test_cointegration_signal():
     
     # # in order to explore the data in advance

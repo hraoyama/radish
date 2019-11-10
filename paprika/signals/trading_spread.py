@@ -1,48 +1,108 @@
 # Trading Price Spread
-from sklearn.linear_model import LinearRegression
+from paprika.core.base_signal import Signal
+from paprika.data.fetcher import DataType
+from paprika.data.feed_subscriber import FeedSubscriber
 
-import utils
-import os
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
+import re
+from typing import List, Tuple
+import logging
+
+from paprika.signals.signal_data import SignalData
+from sklearn.linear_model import LinearRegression
 
 
-def main():
+class DynamicSpread(FeedSubscriber, Signal):
 
-    df = pd.read_csv(os.path.join(utils.PATH, 'inputData_GLD_USO.csv'))
-    df['Date'] = pd.to_datetime(df['Date'], format='%Y%m%d').dt.date  # remove HH:MM:SS
-    df.set_index('Date', inplace=True)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.y_name = str(self.get_parameter("Y_NAME")).upper().strip()
+        self.x_name = str(self.get_parameter("X_NAME")).upper().strip()
+        self.y_name_m = re.compile("^" + self.y_name + ".*")
+        self.x_name_m = re.compile("^" + self.x_name + ".*")
+        self.lookback = self.get_parameter("LOOKBACK")
+        self.positions = pd.DataFrame()
+        self.prices = pd.DataFrame()
+        self.spread_values = []
+        # if either trades come in at separate times or close prices come in a the same time
+        # we should be able to handle either
+        self.y_data = None
+        self.x_data = None
+        self.max_time_distance = self.get_parameter("MAX_TIME_DISTANCE", pd.Timedelta(np.timedelta64(10, 's')))
 
-    lookback = 20
-    n_periods = df.shape[0]
-    hedge_ratio = np.full(n_periods, np.nan)
+    def calc_beta(self):
+        regress_results = LinearRegression().fit(self.prices.iloc[-self.lookback:][self.x_name].values.reshape(-1, 1),
+                                                 self.prices.iloc[-self.lookback:][self.y_name].values)
+        return regress_results.coef_[0]
 
-    for t in np.arange(lookback, n_periods + 1):
-        regress_results = LinearRegression().fit(df.iloc[(t-lookback):t]['GLD'].values.reshape(-1, 1),
-                                                 df.iloc[(t-lookback):t]['USO'].values)
-        hedge_ratio[t-1] = regress_results.coef_[0]
+    def handle_event(self, events: List[Tuple[DataType, pd.DataFrame]]):
 
-    portfolio_value = np.sum(np.stack((-hedge_ratio, np.ones(n_periods)), axis=1) * df[['GLD', 'USO']], axis=1)
-    portfolio_value.plot()
-    plt.show()
+        super().handle_event(events)
+        if len(events) == 1:
+            event = events[0]
+            price_column = 'Price' if event[0] == DataType.TRADES else 'Adj Close'
+            data1 = event[1]
+            y_data = data1[[self.y_name_m.match(x) is not None for x in data1['Symbol']]]
+            x_data = data1[[self.x_name_m.match(x) is not None for x in data1['Symbol']]]
+            execute = False
+            last_index = None
+            if event[0] == DataType.TRADES:
+                if y_data.shape[0] > 0:
+                    if self.y_data is None and self.x_data is not None:
+                        if (y_data.index[0] - self.x_data.index[0]) > self.max_time_distance:
+                            self.x_data = None
+                        else:
+                            execute = True
+                    self.y_data = y_data
+                    last_index = self.y_data.index[-1]
+                if x_data.shape[0] > 0:
+                    if self.x_data is None and self.y_data is not None:
+                        if (x_data.index[0] - self.y_data.index[0]) > self.max_time_distance:
+                            self.y_data = None
+                        else:
+                            execute = True
+                    self.x_data = x_data
+                    last_index = self.x_data.index[-1]
+            else:
+                execute = True
+                self.y_data = y_data
+                self.x_data = x_data
+                last_index = self.y_data.index[-1]
 
-    # trimming off lookback period
-    portfolio_value = portfolio_value[lookback:]
-    hedge_ratio = hedge_ratio[lookback:]
-    df = df[lookback:]
-    n_periods = df.shape[0]
+            if execute:
+                self.prices = self.prices.append(
+                    pd.DataFrame({'DateTime': [last_index],
+                                  self.y_name: self.y_data[price_column][-1],
+                                  self.x_name: self.x_data[price_column][-1]}))
 
-    num_units = -(portfolio_value - portfolio_value.rolling(lookback).mean()) / portfolio_value.rolling(lookback).std()
-    # capital invested in portfolio in dollars
-    positions = pd.DataFrame(np.tile(num_units.values, [2, 1]).T * np.stack((-hedge_ratio, np.ones(n_periods)), axis=1)
-                             * df[['GLD', 'USO']].values)
-    returns = utils.returns_calculator(df[['GLD', 'USO']], 1)
-    pnl = utils.portfolio_return_calculator(positions, returns)  # daily P&L of the strategy
-    ret = pnl / np.sum(np.abs(positions.shift()), axis=1)
-    ret[ret.isnull()] = 0
-    _ = utils.stats_print(df.index, ret)
+                if len(self.prices) < self.lookback:
+                    self.spread_values.append(np.nan)
+                    self.positions = self.positions.append(
+                        pd.DataFrame({'DateTime': [last_index],
+                                      self.y_name: [np.nan],
+                                      self.x_name: [np.nan]}))
+                else:
+                    beta = self.calc_beta()
+                    spread = self.prices[self.y_name][-1:].values[0] - beta * self.prices[self.x_name][-1:].values[0]
+                    self.spread_values.append(spread)
 
+                    num_units = -(spread - np.nanmean(self.spread_values[-self.lookback:])) / \
+                                   np.nanstd(self.spread_values[-self.lookback:], ddof=1)
+                    self.positions = self.positions.append(
+                        pd.DataFrame({'DateTime': [last_index],
+                                      self.y_name: [num_units * self.prices[self.y_name][-1:].values[0]],
+                                      self.x_name: [-num_units * beta * self.prices[self.y_name][-1:].values[0]]}))
 
-if __name__ == "__main__":
-    main()
+                    logging.info(f'{self.positions}')
+                    self.y_data = None
+                    self.x_data = None
+        else:
+            logging.info(f'There are {len(events)} events.')
+
+    def signal_data(self):
+        return SignalData(self.__class__.__name__,
+                          [("positions", SignalData.create_indexed_frame(
+                              self.positions[[self.y_name, self.x_name]].fillna(method='ffill'))),
+                           ("prices", SignalData.create_indexed_frame(self.prices)),
+                           ("spreads", SignalData.create_indexed_frame(self.spread_values))])
