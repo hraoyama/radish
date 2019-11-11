@@ -18,5 +18,9 @@ def test_portfolio():
     p2.add_sub_portfolio(p3)
     p1.add_sub_portfolio(p2)
     p1.add_sub_portfolio(p4)
-    assert p1[p2.name] == p2
+    print(p1.balance)
+    print(p1.total_balance)
+    print(p1.list_sub_portfolio())
+    print(p1)
+    assert p1.get_sub_portfolio(p2.name) == p2
     print(p1.portfolio_value(timestamp))
