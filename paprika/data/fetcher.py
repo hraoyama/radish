@@ -194,7 +194,7 @@ class HistoricalDataFetcher:
                                 fields: List[str] = None):
 
         df = self.fetch_orderbook_at_timestamp(symbol, timestamp, start_time, end_time, add_symbol, fields)
-        if df:
+        if df is not None:
             return df
         else:
             df = self.fetch_trade_at_timestamp(symbol, timestamp, start_time, end_time, add_symbol, fields)
@@ -239,10 +239,18 @@ class HistoricalDataFetcher:
                                  add_symbol: bool = True,
                                  fields: List[str] = None):
         df_timestamp = self.fetch_orderbook_at_timestamp(symbol, timestamp, start_time, end_time, add_symbol, fields)
-        if df_timestamp:
+        if df_timestamp is not None:
             bid1 = df_timestamp[OrderBookColumnName.Bid_Px_Lev_0]
             ask1 = df_timestamp[OrderBookColumnName.Ask_Px_Lev_0]
             return (bid1 + ask1) / 2.0
         else:
             df_timestamp = self.fetch_trade_at_timestamp(symbol, timestamp, start_time, end_time, add_symbol, fields)
             return df_timestamp[TradeColumnName.Price]
+
+    def list_of_symbols(self):
+        symbols = [symbol.replace('.Trade', '').replace('.OrderBook', '') for symbol in self.available_feeds]
+        return list(set(symbols))
+
+    def list_of_symbols_have_orderbook(self):
+        symbols = [symbol.replace('.OrderBook', '') for symbol in self.available_feeds if 'OrderBook' in symbol]
+        return list(set(symbols))
