@@ -12,6 +12,7 @@ import pandas as pd
 from typing import List, Optional
 import copy
 
+
 class TransactionCostType(Enum):
     FIXED = 0
     SPREAD_RATIO = 1
@@ -65,12 +66,12 @@ class SimpleOrderManager(OrderManager):
             # no data after this time, so nothing happens
             return None, None
 
-        fills = []
+        # fills = []
         remaining_order = copy.copy(order)
         for idx_to_check in data.index:
-            fills, remaining_order = self._extract_from_side(portfolio,
-                                                             remaining_order,
-                                                             data.loc[idx_to_check])
+            portfolio, remaining_order = self._extract_from_side(portfolio,
+                                                                 remaining_order,
+                                                                 data.loc[idx_to_check])
             portfolio.add_portfolio_records(idx_to_check)
             if remaining_order.amount == 0:
                 remaining_order = None
@@ -78,20 +79,20 @@ class SimpleOrderManager(OrderManager):
 
         # inform target with the transaction costs
 
-        return fills, remaining_order
+        return portfolio, remaining_order
 
     def _extract_from_side(self,
                            portfolio: Portfolio,
                            order: Order,
                            book_data: pd.DataFrame):
-        executed_fills = []
+        # executed_fills = []
         remaining_order = order
         for level_num in range(5):
             executed_fill, remaining_order = self._fill_from_level(portfolio,
                                                                    remaining_order,
                                                                    book_data,
                                                                    level=level_num)
-            executed_fills.append(executed_fill)
+            # executed_fills.append(executed_fill)
             portfolio.record_trades([executed_fill])
             if remaining_order.amount == 0:
                 break
@@ -106,7 +107,7 @@ class SimpleOrderManager(OrderManager):
         #                         side=order.side, price=remaining_fill_px))
         #     remaining_order = None
 
-        return executed_fills, remaining_order
+        return portfolio, remaining_order
 
     def _fill_from_level(self,
                          portfolio: Portfolio,

@@ -24,10 +24,10 @@ def test_order_manager():
     balance = {base_currency: 10000000}
     p1 = Portfolio("Total", base_currency, balance)
     print(p1)
-    fills, remaining_order = order_manager.accept_order(p1, order, None, None)
+    p1, remaining_order = order_manager.accept_order(p1, order, None, None)
     print(p1)
     order = MarketOrder("EUX.FESX201906", 100, Side.SELL, timestamp + timedelta(minutes=10))
-    fills, remaining_order = order_manager.accept_order(p1, order, None, None)
+    p1, remaining_order = order_manager.accept_order(p1, order, None, None)
     print(p1)
     print(p1.portfolio_records)
 
@@ -35,10 +35,10 @@ def test_order_manager():
     p2 = Portfolio("Total", base_currency, balance)
     print(p2)
     order = MarketOrder("EUX.FESX201906", 100, Side.BUY, timestamp)
-    fills, remaining_order = order_manager.accept_order(p2, order, None, None)
+    p2, remaining_order = order_manager.accept_order(p2, order, None, None)
     print(p2)
     order = MarketOrder("EUX.FESX201906", 100, Side.SELL, timestamp + timedelta(minutes=10))
-    fills, remaining_order = order_manager.accept_order(p2, order, None, None)
+    p2, remaining_order = order_manager.accept_order(p2, order, None, None)
     print(p2)
     print(p2.portfolio_records)
 
