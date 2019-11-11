@@ -53,6 +53,9 @@ class Order:
         self.creation_time = creation_time
         self.side = side
 
+    def __repr__(self):
+        return f'Order({self.id}) at {self.creation_time} {self.side} {self.amount} {self.symbol}'
+
 
 class MarketOrder(Order):
     def __init__(self, symbol, amount, side, creation_time):
