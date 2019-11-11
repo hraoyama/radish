@@ -61,6 +61,8 @@ class Dist(defaultdict):
 
         return NormDist({k: (float_type()(v) / total) for k, v in self.items()})
 
+    def sum(self) -> float:
+        return float_type()(sum(self.values()))
 
 class NormDist(Dist):
     """Normalized distribution, i.e. the sum is 1"""
