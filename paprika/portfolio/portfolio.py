@@ -3,12 +3,14 @@ from typing import Dict, List, NamedTuple, Tuple, Union
 from datetime import datetime
 
 from absl import logging
+import pandas as pd
 
 from paprika.core.context import get_context
 from paprika.utils.distribution import Dist
 from paprika.utils.types import float_type
 from paprika.utils.utils import isclose
 from paprika.data.fetcher import HistoricalDataFetcher
+from paprika.execution.order import Side, Order, MarketOrder, ExecutionResult
 
 
 class Portfolio:
@@ -22,82 +24,12 @@ class Portfolio:
         self._trades = []
         self._sub_portfolio = {}
         self.fetcher = HistoricalDataFetcher()
-
-    @property
-    def name(self):
-        return self._name
-
-    @property
-    def base_currency(self):
-        return self._base_currency
-
-    def clear_sub_portfolio(self):
-        self._sub_portfolio = {}
-
-    @property
-    def balance(self):
-        total_balance = self._balance.readonly()
-        for _, sub_portfolio in self._sub_portfolio.items():
-            total_balance += sub_portfolio.balance
-        return total_balance
-
-    @balance.setter
-    def balance(self, new_balance: Union[Dict[str, Real], Dist]):
-        if isinstance(new_balance, Dict):
-            self._balance = Dist(self._convert_and_clean_up(new_balance))
-        elif isinstance(new_balance, Dist):
-            self._balance = new_balance
-
-    @property
-    def trades(self):
-        total_trades = self._trades
-        for _, sub_portfolio in self._sub_portfolio.items():
-            total_trades += sub_portfolio.trades
-        return total_trades
+        self._portfolio_record = pd.DataFrame(columns=['balance', 'portfolio_value'])
 
     def __repr__(self):
         return (f'Portfolio(name={self.name}, '
                 f'base_currency={self.base_currency}, '
-                f'balance={self.balance})',
-                f'sub portfolios={self._sub_portfolio.keys()})')
-
-    def __getitem__(self, name: str) -> 'Portfolio':
-        return self._sub_portfolio[name]
-
-    def list_sub_portfolio(self):
-        return list(self._sub_portfolio.keys())
-
-    def copy_balances(self) -> Dist:
-        return self.balance.readonly()
-
-    def portfolio_value(self, timestamp: datetime) -> Dict:
-        total_value = self.get_portfolio_value_in_base_currency(timestamp)
-        for _, sub_portfolio in self._sub_portfolio.items():
-            total_value += sub_portfolio.get_portfolio_value_in_base_currency(timestamp)
-        return total_value
-
-    def get_portfolio_value_in_base_currency(self, timestamp: datetime) -> Dict:
-        value_dist = self.get_value_distribution_in_base_currency(timestamp)
-
-        return value_dist.sum()
-
-    def add_sub_portfolio(self, sub_portfolio: 'Portfolio'):
-        self._sub_portfolio[sub_portfolio.name] = sub_portfolio
-
-    def get_value_distribution_in_base_currency(self, timestamp: datetime) -> Dist:
-        value_dist = Dist()
-        for asset, amount in self._balance.items():
-            if asset == self._base_currency:
-                value_dist[asset] = float_type()(amount)
-            else:
-                price = self.fetcher.fetch_price(asset, timestamp)
-
-                value_dist[asset] = float_type()(price * amount)
-                # if not isinstance(limit_price, list):
-                #     value_dist[asset] = float_type()(limit_price * amount)
-                # else:
-                #     value_dist[asset] = None
-        return value_dist
+                f'balance={self.balance})')
 
     def __add__(self, value: 'Portfolio') -> 'Portfolio':
         assert (self.base_currency == value.base_currency)
@@ -108,6 +40,97 @@ class Portfolio:
         assert (self.base_currency == value.base_currency)
         new_balance = self.balance - value.balance
         return Portfolio(self.base_currency, new_balance)
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def base_currency(self) -> str:
+        return self._base_currency
+
+    def clear_sub_portfolio(self):
+        self._sub_portfolio = {}
+
+    @property
+    def balance(self) -> Dist:
+        return self._balance.readonly()
+
+    @property
+    def total_balance(self) -> Dist:
+        total_balance = self._balance.readonly()
+        for _, sub_portfolio in self._sub_portfolio.items():
+            total_balance += sub_portfolio.balance
+        return total_balance
+
+    def copy_balances(self) -> Dist:
+        return self.balance.readonly()
+
+    @property
+    def trades(self) -> List:
+        return self._trades.copy()
+
+    @property
+    def total_trades(self):
+        total_trades = self._trades.copy()
+        for _, sub_portfolio in self._sub_portfolio.items():
+            total_trades += sub_portfolio.trades
+        return total_trades
+
+    def record_trades(self, fills: List[ExecutionResult]):
+        for fill in fills:
+            if isinstance(fill, ExecutionResult):
+                self._balance[self.base_currency] -= fill.costs
+                if fill.side == Side.BUY:
+                    self._balance[fill.symbol] += fill.amount
+                else:
+                    self._balance[fill.symbol] -= fill.amount
+                self._trades.append(fill)
+
+    @property
+    def portfolio_records(self) -> pd.DataFrame:
+        return self._portfolio_record.copy()
+
+    def add_portfolio_records(self, timestamp: datetime):
+        new_record = pd.DataFrame({'balance': [self.balance],
+                                   'portfolio_value': [self.portfolio_value(timestamp)]},
+                                  index=[timestamp])
+        self._portfolio_record = self._portfolio_record.append(new_record)
+
+    def get_sub_portfolio(self, sub_portfolio_name: str) -> 'Portfolio':
+        return self._sub_portfolio[sub_portfolio_name]
+
+    def add_sub_portfolio(self, sub_portfolio: 'Portfolio'):
+        self._sub_portfolio[sub_portfolio.name] = sub_portfolio
+
+    def list_sub_portfolio(self) -> List:
+        return list(self._sub_portfolio.keys())
+
+    def portfolio_value(self, timestamp: datetime) -> float:
+        total_value = self.get_portfolio_value_in_base_currency(timestamp)
+        for _, sub_portfolio in self._sub_portfolio.items():
+            total_value += sub_portfolio.get_portfolio_value_in_base_currency(timestamp)
+        return total_value
+
+    def get_portfolio_value_in_base_currency(self, timestamp: datetime) -> float:
+        value_dist = self.get_value_distribution_in_base_currency(timestamp)
+
+        return value_dist.sum()
+
+    def get_value_distribution_in_base_currency(self, timestamp: datetime) -> Dist:
+        value_dist = Dist()
+        for asset, amount in self._balance.items():
+            if asset == self._base_currency:
+                value_dist[asset] = float_type()(amount)
+            else:
+                price = self.fetcher.fetch_price_at_timestamp(asset, timestamp)
+
+                value_dist[asset] = float_type()(price * amount)
+                # if not isinstance(limit_price, list):
+                #     value_dist[asset] = float_type()(limit_price * amount)
+                # else:
+                #     value_dist[asset] = None
+        return value_dist
 
     @staticmethod
     def _convert_and_clean_up(balance):
