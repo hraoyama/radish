@@ -3,7 +3,7 @@ from paprika.data.data_type import DataType
 from paprika.data.data_channel import DataChannel
 from paprika.data.feed import Feed
 from paprika.utils import utils
-from paprika.signals.buy_on_gap_signal import BuyOnGap
+from paprika.signals.signal_buy_on_gap import BuyOnGap
 
 import numpy as np
 
