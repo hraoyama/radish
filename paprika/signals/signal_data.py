@@ -14,10 +14,10 @@ class SignalData:
     RESULTS_STRING = "RESULTS"
 
     def __init__(self, name: str, data: List[Tuple[str, pd.DataFrame]]):
-        _data = defaultdict(pd.DataFrame)
+        self._data = defaultdict(pd.DataFrame)
         self._name = name
         if isinstance(data, dict):
-            _data = data
+            self._data = data
         else:
             for key, value_frame in data:
                 self.add(key, value_frame, ignore_index=False)

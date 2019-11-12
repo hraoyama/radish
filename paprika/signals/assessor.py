@@ -51,3 +51,4 @@ class Assessor:
         port_return_minus_costs = self._derived_data["port_returns"] - utils.simple_transaction_costs(
             self._data.get_frame(positions_name).values, cost_per_transaction)
         return utils.sharpe(port_return_minus_costs, periods_per_year, between_times)
+

@@ -1,7 +1,7 @@
 # Trading Price Spread using Bollinger Bands
 from sklearn.linear_model import LinearRegression
+from paprika.utils import utils
 
-import utils
 import os
 import numpy as np
 import pandas as pd
@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 
 
 def main():
-    df = pd.read_csv(os.path.join(utils.PATH, 'inputData_GLD_USO.csv'))
+    df = pd.read_csv(os.path.join('C:/Code/bitbucket/radish/resources/data', 'inputData_GLD_USO.csv'))
     df['Date'] = pd.to_datetime(df['Date'], format='%Y%m%d').dt.date  # remove HH:MM:SS
     df.set_index('Date', inplace=True)
 
