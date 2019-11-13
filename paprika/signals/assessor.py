@@ -33,9 +33,9 @@ class Assessor:
         plt.show()
 
     def check_init(self, prices_name: str = "prices", positions_name: str = "positions"):
-        if self._derived_data["returns"] is None:
+        if self._derived_data.get("returns") is None:
             self._derived_data["returns"] = utils.returns_calculator(self._data.get_frame(prices_name).values, 1)
-        if self._derived_data["port_returns"] is None:
+        if self._derived_data.get("port_returns") is None:
             self._derived_data["port_returns"] = utils.portfolio_return_calculator(
                 self._data.get_frame(positions_name).values,
                 self._derived_data["returns"])

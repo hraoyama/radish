@@ -5,6 +5,10 @@ from typing import Any, Type
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from statsmodels.tsa.stattools import coint, adfuller
+from sklearn.linear_model import LinearRegression
+from scipy.stats import pearsonr
+
 
 from paprika.utils.time import datetime_to_millis, millis_for_frequency, seconds_for_frequency
 from paprika.utils.types import float_type

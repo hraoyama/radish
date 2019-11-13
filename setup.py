@@ -21,6 +21,6 @@ setup(name='radish',
           'slackclient',
           'pandas',
           'numpy',
-          'matplotlib'
+          'matplotlib', 'seaborn'
       ],
       zip_safe=True)

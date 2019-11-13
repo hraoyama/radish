@@ -87,5 +87,6 @@ def main():
                        put_in_redis=False)
     print(f'Uploaded {table_name4}')
 
+
 if __name__ == "__main__":
     main()

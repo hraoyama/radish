@@ -14,7 +14,7 @@ class BuyOnGap(FeedSubscriber):
     
     def handle_event(self, events: List[Tuple[DataType, pd.DataFrame]]):
         super().handle_event(events)
-        op = np.array(events[0][1][:1].values[0][:-1],dtype=float)
+        op = np.array(events[0][1][:1].values[0][:-1], dtype=float)
         buy_price = np.array(events[1][1][:1].values[0][:-1], dtype=float)
         ret_gap = np.array(events[2][1][:1].values[0][:-1], dtype=float)
         ma = np.array(events[3][1][:1].values[0][:-1], dtype=float)

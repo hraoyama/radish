@@ -43,7 +43,7 @@ def test_gold_cointegration():
     sharp_cost_adj_tr = gold_assessor.sharpe_cost_adj(periods_per_year, train_times, cost_per_transaction)
     sharp_cost_adj_test = gold_assessor.sharpe_cost_adj(periods_per_year, test_times, cost_per_transaction)
     print("Sharpe ratio on the train {:.2f} and test {:.2f} sets respectively "
-          "after adjusting for transaction costs.".format(sharp_cost_adj_tr, sharp_cost_adj_test))
+         "after adjusting for transaction costs.".format(sharp_cost_adj_tr, sharp_cost_adj_test))
 
     positions = gold_signal.positions[['GLD', 'GDX']].fillna(method='ffill').values
     prices = gold_signal.prices
