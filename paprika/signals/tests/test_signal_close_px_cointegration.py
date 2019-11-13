@@ -26,24 +26,24 @@ def test_gold_cointegration():
 
     gold_signal.run()
     print(gold_signal.positions.head())
-    #gold_signal_data = gold_signal.signal_data()
-    #gold_assessor = Assessor(gold_signal_data)
+    gold_signal_data = gold_signal.signal_data()
+    gold_assessor = Assessor(gold_signal_data)
 
     periods_per_year = 252
-    #gold_assessor.plot_returns()
+    gold_assessor.plot_returns()
 
-    #train_times = (gold_signal_data.get_indices()[0], gold_signal_data.get_indices()[252])
-    #test_times = (gold_signal_data.get_indices()[252], gold_signal_data.get_indices()[-1])
+    train_times = (gold_signal_data.get_indices()[0], gold_signal_data.get_indices()[252])
+    test_times = (gold_signal_data.get_indices()[252], gold_signal_data.get_indices()[-1])
 
-    #sharpe_tr = gold_assessor.sharpe(periods_per_year, train_times)
-    #sharpe_test = gold_assessor.sharpe(periods_per_year, test_times)
-    #print("Sharpe ratio on the train {:.2f} and test {:.2f} sets respectively.".format(sharpe_tr, sharpe_test))
+    sharpe_tr = gold_assessor.sharpe(periods_per_year, train_times)
+    sharpe_test = gold_assessor.sharpe(periods_per_year, test_times)
+    print("Sharpe ratio on the train {:.2f} and test {:.2f} sets respectively.".format(sharpe_tr, sharpe_test))
 
     cost_per_transaction = 0.0005
-    #sharp_cost_adj_tr = gold_assessor.sharpe_cost_adj(periods_per_year, train_times, cost_per_transaction)
-    #sharp_cost_adj_test = gold_assessor.sharpe_cost_adj(periods_per_year, test_times, cost_per_transaction)
-    #print("Sharpe ratio on the train {:.2f} and test {:.2f} sets respectively "
-    #      "after adjusting for transaction costs.".format(sharp_cost_adj_tr, sharp_cost_adj_test))
+    sharp_cost_adj_tr = gold_assessor.sharpe_cost_adj(periods_per_year, train_times, cost_per_transaction)
+    sharp_cost_adj_test = gold_assessor.sharpe_cost_adj(periods_per_year, test_times, cost_per_transaction)
+    print("Sharpe ratio on the train {:.2f} and test {:.2f} sets respectively "
+         "after adjusting for transaction costs.".format(sharp_cost_adj_tr, sharp_cost_adj_test))
 
     positions = gold_signal.positions[['GLD', 'GDX']].fillna(method='ffill').values
     prices = gold_signal.prices

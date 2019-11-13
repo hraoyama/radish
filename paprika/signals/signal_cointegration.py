@@ -107,10 +107,8 @@ class CointegrationSpread(FeedSubscriber, Signal):
             logging.info(f'There are {len(events)} events.')
 
     def signal_data(self):
-        # positions = signal.positions[[self.Y_NAME,self.X_NAME]]].fillna(method='ffill').values
-        # prices = signal.prices
         return SignalData(self.__class__.__name__,
                           [("positions", SignalData.create_indexed_frame(
-                              self.positions[[self.y_name, self.x_name]].fillna(method='ffill'))),
+                              self.positions[["DateTime",self.y_name, self.x_name]].fillna(method='ffill'))),
                            ("prices", SignalData.create_indexed_frame(self.prices)),
                            ("probabilities", SignalData.create_indexed_frame(self.probabilities))])

@@ -108,3 +108,5 @@ venv.bak/
 .idea/vcs.xml
 .idea/radish.iml
 .idea/misc.xml
+pivotaltracker
+pivotaltracker/*.*
