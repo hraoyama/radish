@@ -92,7 +92,7 @@ class DynamicSpread(FeedSubscriber, Signal):
                     self.positions = self.positions.append(
                         pd.DataFrame({'DateTime': [last_index],
                                       self.y_name: [num_units * self.prices[self.y_name][-1:].values[0]],
-                                      self.x_name: [-num_units * beta * self.prices[self.y_name][-1:].values[0]]}))
+                                      self.x_name: [-num_units * beta * self.prices[self.x_name][-1:].values[0]]}))
 
                     logging.info(f'{self.positions}')
                     self.y_data = None
