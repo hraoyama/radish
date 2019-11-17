@@ -7,14 +7,10 @@ import pandas as pd
 from datetime import datetime
 from absl import logging
 
-from paprika.core.api import get_current_frame_timestamp
-from paprika.core.context import get_context
-from paprika.portfolio.account_type import AccountType
-from paprika.portfolio.portfolio import (FuturePortfolio, MarginPortfolio,
-                                         Portfolio)
+from paprika.portfolio.portfolio import Portfolio
 from paprika.utils.distribution import Dist
 from paprika.utils.types import float_type
-from paprika.utils.utils import currency_pair, isclose
+from paprika.utils.utils import isclose
 from paprika.portfolio.risk_policy import RiskPolicy
 from paprika.portfolio.order_manager import OrderManager
 from paprika.portfolio.optimization import PortfolioOptimizer
@@ -64,186 +60,63 @@ class PortfolioManager:
     def portfolio_records(self):
         return self._portfolio.portfolio_records
 
-    @staticmethod
-    def merge_signal_timestamps(signal_data: Dict[str, SignalData]):
-        dfs = [each_signal_data.get_timestamps() for each_signal_data in signal_data.values()]
-        return pd.contact(dfs, axis=1, sort=True)
-
-    # @staticmethod
-    # def create_new_order_from_signal(symbol: Str,
-    #                                  position: Float,
-    #                                  timestamp: datetime,
-    #                                  allocation: Float,
-    #                                  price: Float,
-    #                                  order_type: OrderType) -> Order:
-    #
-    #     amount = abs(int(allocation * position / price))
-    #     if position > 0:
-    #         side = Side.BUY
-    #     else:
-    #         side = Side.SELL
-    #     if order_type == OrderType.MMARKET:
-    #         return MarketOrder(symbol, amount, side, timestamp)
-    #     else:
-    #         return LimitOrder(symbol, amount, side, timestamp)
-
-    @staticmethod
-    def get_positions(timestamp: datetime,
-                      signal_data: Dict[str, SignalData],
-                      signal_name: str):
-        # positions: pd.Series
-        positions = signal_data[signal_name].position(timestamp)
-        if not isclose(positions.abs().sum(), 0):
-            positions = positions / positions.abs().sum()
-        return positions
-
-    # def update_order_from_signal(self,
-    #                              order: Order,
-    #                              position: Float,
-    #                              allocation: Float,
-    #                              price: Float, ) -> Order:
-    #     if isinstance(order, MarketOrder):
-    #         new_order = self.create_new_order_from_signal(order.symbol,
-    #                                                       position,
-    #                                                       order.timestamp,
-    #                                                       allocation,
-    #                                                       price,
-    #                                                       OrderType.MMARKET)
-    #     else:
-    #         new_order = self.create_new_order_from_signal(order.symbol,
-    #                                                       position,
-    #                                                       order.timestamp,
-    #                                                       allocation,
-    #                                                       price,
-    #                                                       OrderType.LIMIT)
-    #
-    #     return self.update_order_by_order(order, new_order)
-
-    # @staticmethod
-    # def update_order_by_order(order: Order,
-    #                           new_order: Order) -> Order:
-    #
-    #     if order.side == new_order.side:
-    #         order.amount += new_order.amount
-    #     else:
-    #         order.amount -= new_order.amount
-    #         if order.amount < 0:
-    #             order.amount = abs(order.amount)
-    #             if order.side == Side.BUY:
-    #                 order.side = Side.SELL
-    #             else:
-    #                 order.side = Side.BUY
-    #     return order
-
-    # def get_order_from_signal(self,
-    #                           orders: Dict[Str, Order],
-    #                           symbol: Str,
-    #                           position: Float,
-    #                           timestamp: datetime,
-    #                           allocation: Float,
-    #                           price: Float,
-    #                           order_type: OrderType) -> Order:
-    #
-    #     if symbol not in orders.keys():
-    #         return self.create_new_order_from_signal(symbol,
-    #                                                  position,
-    #                                                  timestamp,
-    #                                                  allocation,
-    #                                                  price,
-    #                                                  order_type)
-    #     else:
-    #         return self.update_order_from_signal(orders[symbol],
-    #                                              position,
-    #                                              allocation,
-    #                                              price)
-
-    # def get_orders_from_signal(self,
-    #                            timestamp: datetime,
-    #                            signal_data: Dict[Str, SignalData],
-    #                            row: pd.Series,
-    #                            order_type: OrderType) -> Dict[Str, SignalData]:
-    #
-    #     # signal_allocations: Dict[Str, Float]
-    #     signal_allocations = self.risk_policy.get_allocation(self._portfolio, signal_data.keys())
-    #     # orders: Dict[Str, Order]
-    #     orders = dict()
-    #     for signal_name in row.index:
-    #         if row[signal_name]:
-    #             positions = self.get_positions(timestamp, signal_data, signal_name)
-    #             allocation = signal_allocations[signal_name]
-    #             for symbol, position in positions.iteritems():
-    #                 price = prices[symbol]
-    #                 orders[symbol] = self.get_order_from_signal(
-    #                     orders,
-    #                     symbol,
-    #                     position,
-    #                     timestamp,
-    #                     allocation,
-    #                     price,
-    #                     order_type)
-    #
-    #     return orders
-
-    # TODO: speed up
-    def executing_signals(self, signal_data: Dict[str, SignalData],
+    def executing_signals(self,
+                          signals_data: Dict[str, SignalData],
                           order_type: Optional[OrderType] = OrderType.MARKET):
-        if self._portfolio is None:
-            logging.error(f"Please use set_portfolio function to set a portfolio at first. ")
-        else:
-            signals_timestamp = self.merge_signal_timestamps(signal_data)
-            for timestamp, signal_names in signals_timestamp.iterrows():
-                # orders = self.get_orders_from_signal(timestamp,
-                #                                      signal_data,
-                #                                      signal_names,
-                #                                      order_type)
-                # self.executing_orders(orders)
+        if self._portfolio_exist():
+            signals_timestamps = self.merge_signals_timestamps(signals_data)
+            for timestamp, signal_names in signals_timestamps.iterrows():
                 self.executing_signals_at_one_timestamp(timestamp,
-                                                        signal_data,
-                                                        signal_names,
+                                                        signals_data,
+                                                        signal_names.dropna().to_list(),
                                                         order_type)
+
+    def _portfolio_exist(self) -> bool:
+        if self._portfolio is None:
+            raise Exception(f"Please use set_portfolio function to set a portfolio at first. ")
+        else:
+            return True
+
+    @staticmethod
+    def merge_signals_timestamps(signals_data: Dict[str, SignalData]) -> pd.DataFrame:
+        dfs = [pd.Series(name, index=signal_data.get_indices()) for name, signal_data in signals_data.items()]
+        return pd.concat(dfs, axis=1)
 
     def executing_signals_at_one_timestamp(self,
                                            timestamp: datetime,
-                                           signal_data: Dict[str, SignalData],
-                                           signal_names: pd.Series,
+                                           signals_data: Dict[str, SignalData],
+                                           signal_names: List[str],
                                            order_type: OrderType):
 
-        orders = self.get_orders_from_signals(timestamp,
-                                              signal_data,
-                                              signal_names,
-                                              order_type)
-        self.executing_orders_at_one_timestamp(orders)
+        for signal_name in signal_names:
+            portfolio_to_use = self.get_portfolio_to_use(signal_name)
+            orders = self.get_orders_from_signal(timestamp,
+                                                 signals_data[signal_name],
+                                                 portfolio_to_use,
+                                                 order_type)
 
-    def get_orders_from_signals(self,
-                                timestamp: datetime,
-                                signal_data: Dict[str, SignalData],
-                                signal_names: pd.Series,
-                                order_type: OrderType) -> Dict[str, SignalData]:
-        orders = dict()
-        for signal_name in signal_names.index:
-            if signal_names[signal_name]:
-                orders = self.get_orders_from_signal(timestamp,
-                                                     signal_data,
-                                                     signal_name,
-                                                     order_type)
-        return orders
+            self.executing_orders_at_one_timestamp(orders, portfolio_to_use)
+
+    def get_portfolio_to_use(self, signal_name: str) -> Portfolio:
+        if signal_name in self._portfolio.list_sub_portfolio():
+            portfolio_to_use = self._portfolio.get_sub_portfolio(signal_name)
+        else:
+            logging.info(f'No sub portfolio {signal_name} found.'
+                         f'Will use main portfolio for Signal {signal_name}.')
+            portfolio_to_use = self._portfolio
+
+        return portfolio_to_use
 
     def get_orders_from_signal(self,
                                timestamp: datetime,
-                               signal_data: Dict[str, SignalData],
-                               signal_name: pd.Series,
-                               order_type: OrderType) -> Dict[str, SignalData]:
+                               signal_data: SignalData,
+                               portfolio_to_use: Portfolio,
+                               order_type: OrderType) -> Dict[str, Order]:
 
-        signal_portfolio = self._portfolio[signal_name]
-        signal_portfolio_dist = signal_portfolio.dist()
+        diff_in_amount = self.get_amounts_of_orders(timestamp, signal_data, portfolio_to_use)
 
-        target_dist = self.get_positions(timestamp, signal_data, signal_name)
-        diff_dist = target_dist - signal_portfolio_dist
-        diff_in_base = diff_dist * signal_portfolio.portfolio_value()
-        prices = signal_data[signal_name].prices(timestamp)
-        diff_in_amount = diff_in_base / prices
-
-        for symbol, amount in diff_in_amount.iteritems():
+        orders = {}
+        for symbol, amount in diff_in_amount.items():
             orders[symbol] = self.get_order_from_signal(
                 orders,
                 symbol,
@@ -252,6 +125,43 @@ class PortfolioManager:
                 order_type)
 
         return orders
+
+    def get_amounts_of_orders(self,
+                              timestamp: datetime,
+                              signal_data: SignalData,
+                              portfolio_to_use: Portfolio) -> Dist:
+        portfolio_dist = portfolio_to_use.get_value_distribution_in_base_currency(timestamp)
+        target_dist = self.get_signal_positions(timestamp, signal_data)
+        diff_dist = target_dist - portfolio_dist.normalize()
+        if portfolio_to_use.base_currency in diff_dist.keys():
+            del diff_dist[portfolio_to_use.base_currency]
+        diff_in_base = diff_dist * portfolio_dist.sum()
+        prices = self.get_signal_prices(timestamp, signal_data, portfolio_to_use)
+        diff_in_amount = diff_in_base / prices
+
+        return Dist({symbol: int(amount) for symbol, amount in diff_in_amount.items()})
+
+    @staticmethod
+    def get_signal_positions(timestamp: datetime,
+                             signal_data: SignalData) -> Dist:
+        positions = Dist(signal_data.get_frame('positions').loc[timestamp, :])
+        if not isclose(positions.abs().sum(), 0):
+            return positions.normalize()
+        else:
+            return Dist()
+
+    def get_signal_prices(self,
+                          timestamp: datetime,
+                          signal_data: SignalData,
+                          portfolio_to_use: Portfolio):
+
+        prices_signal = Dist(signal_data.get_frame('prices').loc[timestamp, :])
+        symbols_not_in_signal = [symbol for symbol in portfolio_to_use.balance.keys() if
+                                 symbol not in prices_signal.keys()
+                                 and symbol != portfolio_to_use.base_currency]
+        prices_symbols_not_in_signal = Dist({symbol: self.fetcher.fetch_price_at_timestamp(symbol, timestamp)
+                                             for symbol in symbols_not_in_signal})
+        return prices_symbols_not_in_signal + prices_signal
 
     def get_order_from_signal(self,
                               orders: Dict[str, Order],
@@ -279,7 +189,7 @@ class PortfolioManager:
             side = Side.BUY
         else:
             side = Side.SELL
-        if order_type == OrderType.MMARKET:
+        if order_type == OrderType.MARKET:
             return MarketOrder(symbol, amount, side, timestamp)
         else:
             return LimitOrder(symbol, amount, side, timestamp)
@@ -290,12 +200,12 @@ class PortfolioManager:
         if isinstance(order, MarketOrder):
             new_order = self.create_new_order_from_signal(order.symbol,
                                                           amount,
-                                                          order.timestamp,
+                                                          order.creation_time,
                                                           OrderType.MMARKET)
         else:
             new_order = self.create_new_order_from_signal(order.symbol,
                                                           amount,
-                                                          order.timestamp,
+                                                          order.creation_time,
                                                           OrderType.LIMIT)
 
         return self.update_order_by_order(order, new_order)
@@ -344,35 +254,13 @@ class PortfolioManager:
             for symbol, order in orders.items():
                 if self.is_enough_balance(order, portfolio_to_use):
                     logging.info(f'Send {order} to Order Manager for portfolio {portfolio_to_use.name}.')
-                    portfolio_to_use, remaining_order = self.order_manager.accept_order(portfolio_to_use, order, src, target)
+                    portfolio_to_use, remaining_order = self.order_manager.accept_order(portfolio_to_use, order, src,
+                                                                                        target)
                     if remaining_order:
                         self._remaining_orders[symbol] = remaining_order
                 else:
                     logging.info(f'Portfolio {portfolio_to_use.name} have {portfolio_to_use.balance}.'
                                  f'Can not support order to {order.side} {order.symbol} {order.amount}.')
-
-    def _portfolio_exist(self) -> bool:
-        if self._portfolio is None:
-            raise Exception(f"Please use set_portfolio function to set a portfolio at first. ")
-        else:
-            return True
-
-    # def record_trade(self,
-    #                  fills: List[ExecutionResult],
-    #                  portfolio_to_use: Optional[Portfolio] = None) -> bool:
-    #     if self._portfolio_exist():
-    #         if portfolio_to_use is None:
-    #             portfolio_to_use = self._portfolio
-    #         self._executed_orders.append(fills)
-    #         self._portfolio.add_trades(fills)
-    #         portfolio_to_use.add_trades(fills)
-    #         for fill in fills:
-    #             portfolio_to_use.balance[portfolio_to_use.base_currency] -= fill.costs
-    #             if fill.side == Side.BUY:
-    #                 portfolio_to_use.balance[fill.symbol] += fill.amount
-    #             else:
-    #                 portfolio_to_use.balance[fill.symbol] -= fill.amount
-    #         return True
 
     @staticmethod
     def sort_orders(orders: Dict[str, Order]) -> OrderedDict:
