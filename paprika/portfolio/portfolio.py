@@ -93,7 +93,7 @@ class Portfolio:
 
     def add_portfolio_records(self, timestamp: datetime):
         new_record = pd.DataFrame({'balance': [self.balance],
-                                   'portfolio_value': [self.portfolio_value(timestamp)]},
+                                   'portfolio_value': [self.portfolio_value_in_base_currency(timestamp)]},
                                   index=[timestamp])
         self._portfolio_record = self._portfolio_record.append(new_record)
 
@@ -106,16 +106,14 @@ class Portfolio:
     def list_sub_portfolio(self) -> List:
         return list(self._sub_portfolio.keys())
 
-    def portfolio_value(self, timestamp: datetime) -> float:
-        total_value = self.get_portfolio_value_in_base_currency(timestamp)
+    def total_portfolio_value_in_base_currency(self, timestamp: datetime) -> float:
+        total_value = self.portfolio_value_in_base_currency(timestamp)
         for _, sub_portfolio in self._sub_portfolio.items():
             total_value += sub_portfolio.get_portfolio_value_in_base_currency(timestamp)
         return total_value
 
-    def get_portfolio_value_in_base_currency(self, timestamp: datetime) -> float:
-        value_dist = self.get_value_distribution_in_base_currency(timestamp)
-
-        return value_dist.sum()
+    def portfolio_value_in_base_currency(self, timestamp: datetime) -> float:
+        return self.get_value_distribution_in_base_currency(timestamp).sum()
 
     def get_value_distribution_in_base_currency(self, timestamp: datetime) -> Dist:
         value_dist = Dist()
@@ -124,12 +122,7 @@ class Portfolio:
                 value_dist[asset] = float_type()(amount)
             else:
                 price = self.fetcher.fetch_price_at_timestamp(asset, timestamp)
-
                 value_dist[asset] = float_type()(price * amount)
-                # if not isinstance(limit_price, list):
-                #     value_dist[asset] = float_type()(limit_price * amount)
-                # else:
-                #     value_dist[asset] = None
         return value_dist
 
     @staticmethod
