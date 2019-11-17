@@ -24,7 +24,7 @@ class DynamicSpread(FeedSubscriber, Signal):
         self.lookback = self.get_parameter("LOOKBACK")
         self.positions = pd.DataFrame()
         self.prices = pd.DataFrame()
-        self.spread_values = []
+        self.spreads = []
         # if either trades come in at separate times or close prices come in a the same time
         # we should be able to handle either
         self.y_data = None
@@ -68,6 +68,9 @@ class DynamicSpread(FeedSubscriber, Signal):
                 execute = True
                 self.y_data = y_data
                 self.x_data = x_data
+                if len(self.y_data.index) <1:
+                    print(str(self.y_data))
+
                 last_index = self.y_data.index[-1]
 
             if execute:
@@ -77,7 +80,7 @@ class DynamicSpread(FeedSubscriber, Signal):
                                   self.x_name: self.x_data[price_column][-1]}))
 
                 if len(self.prices) < self.lookback:
-                    self.spread_values.append(np.nan)
+                    self.spreads.append(np.nan)
                     self.positions = self.positions.append(
                         pd.DataFrame({'DateTime': [last_index],
                                       self.y_name: [np.nan],
@@ -85,10 +88,10 @@ class DynamicSpread(FeedSubscriber, Signal):
                 else:
                     beta = self.calc_beta()
                     spread = self.prices[self.y_name][-1:].values[0] - beta * self.prices[self.x_name][-1:].values[0]
-                    self.spread_values.append(spread)
+                    self.spreads.append(spread)
 
-                    num_units = -(spread - np.nanmean(self.spread_values[-self.lookback:])) / \
-                                   np.nanstd(self.spread_values[-self.lookback:], ddof=1)
+                    num_units = -(spread - np.nanmean(self.spreads[-self.lookback:])) / \
+                                   np.nanstd(self.spreads[-self.lookback:], ddof=1)
                     self.positions = self.positions.append(
                         pd.DataFrame({'DateTime': [last_index],
                                       self.y_name: [num_units * self.prices[self.y_name][-1:].values[0]],
@@ -105,4 +108,4 @@ class DynamicSpread(FeedSubscriber, Signal):
                           [("positions", SignalData.create_indexed_frame(
                               self.positions[[self.y_name, self.x_name]].fillna(method='ffill'))),
                            ("prices", SignalData.create_indexed_frame(self.prices)),
-                           ("spreads", SignalData.create_indexed_frame(self.spread_values))])
+                           ("spreads", SignalData.create_indexed_frame(self.spreads))])

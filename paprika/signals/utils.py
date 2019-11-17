@@ -220,4 +220,5 @@ def stats_print(time_idx, returns, rotation=0):
     plt.show()
 
     print('APR={:.2f} and Sharpe={:.2f}'.format(np.prod(1 + returns) ** (252 / len(returns)) - 1, sharpe(returns, 252)))
+    print('Maximum Drawdown={:.2f} and Maximum Drawdown Duration={:.2f}'.format(drawdown_calculator(returns)))
     return cum_ret

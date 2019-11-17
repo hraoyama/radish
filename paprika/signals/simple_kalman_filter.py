@@ -54,12 +54,12 @@ class SimpleKalmanSignal(FeedSubscriber, Signal):
             self.beta.append(self.beta[t - 1])
             self.R = self.P + self.Vw
 
-        x_vec = [self.x_data, 1]
+        x_vec = [self.x_data['Adj Close'].values[0], 1]
         y_hat = np.dot(x_vec, self.beta[t])
         Q = np.dot(x_vec, np.dot(self.R, x_vec)) + self.Ve
-        e = self.y_data - y_hat  # measurement prediction error
+        e = self.y_data['Adj Close'].values[0] - y_hat  # measurement prediction error
         K = np.dot(x_vec, self.R) / Q  # Kalman gain
-        self.beta[t] = list(np.array(self.beta[:, t]) + np.dot(K, e))  # State update. Equation 3.11
+        self.beta[t] = list(np.array(self.beta[t]) + np.dot(K, e))  # State update. Equation 3.11
         # State covariance update. Equation 3.12
         self.P = self.R - np.dot(np.dot(K.reshape(-1, 1), np.array(x_vec).reshape(-1, 1).T), self.R)
         self.counter += 1
@@ -98,7 +98,7 @@ class SimpleKalmanSignal(FeedSubscriber, Signal):
         num_units = self.num_units_long + self.num_units_short
 
         t = self.counter - 1
-        positions = num_units.iloc[t] * np.array([-self.beta[t], 1]) * np.array([self.x_data, self.y_data])
+        positions = num_units.iloc[t].values[0] * np.array([-self.beta[t][0], 1]) * np.array([self.x_data['Adj Close'].values[0], self.y_data['Adj Close'].values[0]])
         return positions
 
     def handle_event(self, events: List[Tuple[DataType, pd.DataFrame]]):

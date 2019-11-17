@@ -156,6 +156,8 @@ class Feed:
                 set(self.data_dictionary[data_type].index).intersection(sorted_indices)]
         
         for index in sorted_indices:
+            if index is None:
+                continue
             # usually this is only 1 data type matching a specific time, seems like a lot of work for edge cases
             events = []
             passed_data_types = dispatched_indices[index]
