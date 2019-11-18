@@ -45,6 +45,9 @@ Backtesting and research  platform
    ```
    The second cell imports ```df```  from global environment and makes the default figure size 5 by 5 inches with 200 dpi resolution.
 
+### For concept maps
+
+https://cmaptools.en.uptodown.com/windows
 
 
    
