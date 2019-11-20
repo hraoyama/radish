@@ -1,9 +1,9 @@
 from paprika.portfolio.portfolio import Portfolio
-
+from paprika.execution.order import Order
 from abc import ABC
-from typing import List
+from typing import List, Dict
 from absl import logging
-
+from datetime import datetime
 
 class RiskPolicy(ABC):
     def allocate(self,
@@ -13,6 +13,12 @@ class RiskPolicy(ABC):
         if how == 'Equally':
             return self.equally_allocate(whole_portfolio,
                                          sub_portfolio_names)
+
+    def rebalance(self,
+                  portfolio: Portfolio,
+                  timestamp: datetime) -> Dict[str, Order]:
+        orders = {}
+        return orders
 
     def equally_allocate(self,
                          whole_portfolio: Portfolio,
@@ -32,7 +38,7 @@ class RiskPolicy(ABC):
 
     @staticmethod
     def merge_sub_portfolios(portfolio: Portfolio) -> Portfolio:
-        balance = portfolio.balance
-        portfolio.clear_sub_portfolio()
-        portfolio.balance = balance
-        return portfolio
+        balance = portfolio.total_balance
+        return Portfolio(portfolio.name,
+                         portfolio.base_currency,
+                         balance)

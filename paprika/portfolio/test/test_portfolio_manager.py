@@ -3,9 +3,8 @@ from paprika.portfolio.order_manager import SimpleOrderManager
 from paprika.portfolio.order_manager import TransactionCost, TransactionCostType
 from paprika.portfolio.portfolio_manager import PortfolioManager
 from paprika.portfolio.portfolio import Portfolio
-from paprika.signals.signal_data import SignalData
 # from paprika.portfolio.optimization import PortfolioOptimizer
-# from paprika.portfolio.risk_policy import RiskPolicy
+from paprika.portfolio.risk_policy import RiskPolicy
 from paprika.data.fetcher import HistoricalDataFetcher
 from paprika.data.data_type import DataType
 from paprika.data.feed import Feed
@@ -26,13 +25,14 @@ def test_portfolio_manager():
     balance = {base_currency: 100000}
     portfolio = Portfolio('T', base_currency, balance)
 
-    portfolio_manager = PortfolioManager(order_manager)
+    risk_policy = RiskPolicy()
+    portfolio_manager = PortfolioManager(order_manager, risk_policy=risk_policy)
 
     symbol = 'EUX.FESX201906'
     df = data_fetcher.fetch_orderbook(symbol)
     timestamp = df.index[10]
 
-    portfolio_manager.set_portfolio(portfolio, timestamp)
+    portfolio_manager.portfolio = portfolio
 
     orders[symbol] = MarketOrder(symbol, 10, Side.BUY, timestamp + timedelta(minutes=10))
     portfolio_manager.executing_orders_at_one_timestamp(orders)

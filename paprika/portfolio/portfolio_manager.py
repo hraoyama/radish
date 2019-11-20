@@ -23,20 +23,9 @@ class PortfolioManager:
     def __init__(self, order_manager: OrderManager,
                  optimizer: Optional[PortfolioOptimizer] = None,
                  risk_policy: Optional[RiskPolicy] = None):
-        # if portfolio_by_source is None:
-        #     portfolio_by_source = {}
-        #
-        # # (source, account_type) -> portfolio
-        # self.portfolio_by_source: Dict[Tuple[str, AccountType], Portfolio] = \
-        #     portfolio_by_source.copy()
-
-        # self.trades = defaultdict(list)
-        # self.received_orders = []
         self._remaining_orders = dict()
         self._executed_orders = []
-        # self.trades_index = defaultdict(list)
         self.order_manager = order_manager
-
         self.optimizer = optimizer
         self.risk_policy = risk_policy
         self._portfolio = None
@@ -46,11 +35,9 @@ class PortfolioManager:
     def portfolio(self) -> Portfolio:
         return self._portfolio
 
-    def set_portfolio(self,
-                      portfolio: Portfolio,
-                      timestamp: datetime):
+    @portfolio.setter
+    def portfolio(self, portfolio: Portfolio):
         self._portfolio = portfolio
-        self._portfolio.add_portfolio_records(timestamp)
 
     @property
     def trades(self):
@@ -64,12 +51,26 @@ class PortfolioManager:
                           signals_data: Dict[str, SignalData],
                           order_type: Optional[OrderType] = OrderType.MARKET):
         if self._portfolio_exist():
+            self._portfolio = self.allocate_portfolios_to_signals(signals_data)
+            self.record_initial_portfolios(signals_data)
             signals_timestamps = self.merge_signals_timestamps(signals_data)
             for timestamp, signal_names in signals_timestamps.iterrows():
                 self.executing_signals_at_one_timestamp(timestamp,
                                                         signals_data,
                                                         signal_names.dropna().to_list(),
                                                         order_type)
+
+    # TODO change get_indices()[0] to start_time
+    def record_initial_portfolios(self, signals_data: Dict[str, SignalData]):
+        for signal_name, signal_data in signals_data.items():
+            signal_portfolio = self._portfolio.get_sub_portfolio(signal_name)
+            signal_portfolio.add_portfolio_records(signal_data.get_indices()[0])
+
+    def allocate_portfolios_to_signals(self, signals_data: Dict[str, SignalData]):
+        """
+        In the beginning, portfolio equally separates to signals
+        """
+        return self.risk_policy.allocate(self._portfolio, list(signals_data.keys()))
 
     def _portfolio_exist(self) -> bool:
         if self._portfolio is None:
@@ -94,7 +95,8 @@ class PortfolioManager:
                                                  signals_data[signal_name],
                                                  portfolio_to_use,
                                                  order_type)
-
+            risk_orders = self.risk_policy.rebalance(portfolio_to_use, timestamp)
+            orders = self.merge_orders(orders, risk_orders)
             self.executing_orders_at_one_timestamp(orders, portfolio_to_use)
 
     def get_portfolio_to_use(self, signal_name: str) -> Portfolio:
