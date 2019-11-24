@@ -1,4 +1,4 @@
-from paprika.exchange.data_processor import DataProcessor
+from paprika.data.data_processor import DataProcessor
 from paprika.data.data_channel import DataChannel
 
 import pandas as pd

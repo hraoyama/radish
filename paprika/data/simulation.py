@@ -1,20 +1,13 @@
-from haidata.fix_colnames import fix_colnames
-from haidata.extract_returns import extract_returns
-
-from paprika.exchange.data_processor import DataProcessor
-from paprika.data.feed_filter import FilterInterface
+from paprika.data.data_processor import DataProcessor
 from paprika.data.feed_filter import TimePeriod, TimeFreqFilter
 from paprika.data.data_channel import DataChannel
-from paprika.data.data_type import DataType
-from paprika.utils.record import Timeseries
 
 from pprint import pprint as pp
-from functools import partial
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
+from datetime import datetime
 from arch import arch_model
-from absl import app, logging
+from absl import logging
 import matplotlib.pyplot as plt
 
 

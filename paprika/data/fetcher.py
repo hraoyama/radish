@@ -17,7 +17,7 @@ from arctic import Arctic
 from arctic import CHUNK_STORE
 from arctic.date import DateRange
 
-from .data_type import DataType
+from paprika.data.data_type import DataType
 from paprika.data.constants import OrderBookColumnName
 from paprika.data.constants import TradeColumnName
 
