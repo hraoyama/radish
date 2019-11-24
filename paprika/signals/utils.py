@@ -1,7 +1,7 @@
 from statsmodels.tsa.stattools import coint, adfuller
 from sklearn.linear_model import LinearRegression
 from scipy.stats import pearsonr
-from genhurst import genhurst
+#from genhurst import genhurst
 
 import numpy as np
 import pandas as pd
@@ -38,6 +38,7 @@ def drawdown_calculator(excess_returns):
     """
 
     df = pd.DataFrame(excess_returns, columns=['net'])
+    df.reset_index(drop=True, inplace=True)
     df['cum_ret'] = (1 + df['net']).cumprod() - 1
     df['high_mark'] = np.maximum.accumulate(df['cum_ret'].fillna(0))
     df.loc[0, 'high_mark'] = np.nan
@@ -149,14 +150,14 @@ def adf_test(z, **kwargs):
     return results
 
 
-def hurst_exp(z):
-    """
-    Hurst exponent computation
-    :param z:
-    :return:
-    """
-    hurst_val, p_value = genhurst(np.log(z))
-    return hurst_val, p_value
+#def hurst_exp(z):
+#    """
+#    Hurst exponent computation
+#    :param z:
+##    :return:
+#    """
+#    hurst_val, p_value = genhurst(np.log(z))
+#    return hurst_val, p_value
 
 
 def kf_simple(obs, obs_model):
@@ -220,5 +221,6 @@ def stats_print(time_idx, returns, rotation=0):
     plt.show()
 
     print('APR={:.2f} and Sharpe={:.2f}'.format(np.prod(1 + returns) ** (252 / len(returns)) - 1, sharpe(returns, 252)))
-    print('Maximum Drawdown={:.2f} and Maximum Drawdown Duration={:.2f}'.format(drawdown_calculator(returns)))
+    max_dd, max_dd_duration = drawdown_calculator(returns)
+    print('Maximum Drawdown={:.2f} and Maximum Drawdown Duration={:.2f}'.format(max_dd, max_dd_duration))
     return cum_ret
