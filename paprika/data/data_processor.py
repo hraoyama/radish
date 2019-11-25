@@ -174,3 +174,50 @@ class DataProcessor():
 
     def shift_to_new_column(self, new_column_name, source_column_name, shift_count):
         return self.__call__(partial(DataProcessor._shift, new_column_name, source_column_name, shift_count))
+
+    @property
+    def open(self):
+        if 'OPEN' in self._data.columns:
+            return self._data['OPEN'].unstack('Symbol')
+        else:
+            return None
+
+    @property
+    def close(self):
+        if 'CLOSE' in self._data.columns:
+            return self._data['CLOSE'].unstack('Symbol')
+        else:
+            return None
+
+    @property
+    def high(self):
+        if 'HIGH' in self._data.columns:
+            return self._data['HIGH'].unstack('Symbol')
+        else:
+            return None
+
+    @property
+    def low(self):
+        if 'LOW' in self._data.columns:
+            return self._data['LOW'].unstack('Symbol')
+        else:
+            return None
+
+    @property
+    def volume(self):
+        if 'VOLUME' in self._data.columns:
+            return self._data['VOLUME'].unstack('Symbol')
+        else:
+            return None
+
+    @property
+    def vwap(self):
+        pass
+
+    @property
+    def cap(self):
+        pass
+
+    @property
+    def adv(self, period: str):
+        pass
