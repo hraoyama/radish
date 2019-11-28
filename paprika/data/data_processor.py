@@ -9,6 +9,7 @@ from functools import partial
 
 import pandas as pd
 import functools
+from datetime import datetime
 import numpy as np
 
 
@@ -39,6 +40,22 @@ class DataProcessor():
             self._data = DataChannel.download(args[0], *args[1:], **kwargs)
             if DataProcessor.MAKE_AVAILABLE_IN_FEEDS and not is_available_in_feeds:
                 DataChannel.upload(self._data, args[0], arctic_source_name='feeds', string_format=False)
+        elif args and isinstance(args[0], list):
+            dps = {}
+            for symbol in args[0]:
+                dp = DataProcessor(symbol)
+                if args[1] == 'ohlcv' and isinstance(args[2], TimeFreqFilter):
+                    dp = dp.ohlcv(args[2])
+                if dp:
+                    dps[symbol] = dp.data
+            if len(dps):
+                df = pd.concat(dps)
+                if isinstance(df.index[0][0], str) and isinstance(df.index[0][1], datetime):
+                    df.index.names = ['Symbol', 'Start_Period']
+                else:
+                    raise TypeError(f'Index is {df.index[0]} is not (str, datetime)')
+                self._data = df.groupby(['Start_Period', 'Symbol']).first()
+
         elif "table_name" in kwargs.keys():
             is_available_in_feeds = kwargs["table_name"] in DataChannel.table_names()
             if "arctic_source_name" not in kwargs:
@@ -122,22 +139,13 @@ class DataProcessor():
     def summarize_intervals(self, time_freq_filter, funcs_list, column_name):
         return self.__getitem__((time_freq_filter, funcs_list, column_name))
 
-    def ohlcv(self, time_freq_filter):
+    def ohlcv(self, time_freq_filter: TimeFreqFilter) -> 'DataProcessor':
         if self._data.shape[0] > 0:
-            funcs_list = [DataProcessor.first,
-                          np.max,
-                          np.min,
-                          DataProcessor.last,
-                          np.median,
-                          np.mean,
-                          np.std]
-            column_name = "Price"
-            dp = self.__getitem__((time_freq_filter, funcs_list, column_name))
-            old_names = ['amax', 'amin', 'mean', 'median', 'first', 'last', 'std']
-            new_names = ['HIGH', 'LOW', 'MEAN', 'MEDIAN', 'OPEN', 'CLOSE', 'STD']
-            dp = dp.rename_columns(old_names, new_names)
-            dp._data['VOLUME'] = self.__getitem__((time_freq_filter, [np.sum], 'Volume')).data['sum']
-            return dp
+            time_freq = f'{time_freq_filter.length}{time_freq_filter.period.value}'
+            df_ohlcv = self._data["Price"].resample(time_freq).ohlc()
+            df_ohlcv['volume'] = self._data['Volume'].resample(time_freq).sum()
+            df_ohlcv.columns = [col.upper() for col in df_ohlcv.columns]
+            return DataProcessor(df_ohlcv)
         else:
             return None
 

@@ -150,7 +150,8 @@ class DataChannel:
     @staticmethod
     def check_register(part_of_symbol_list, feeds_db=True):
         # pattern_list = [re.compile(".*" + x.upper().strip() + ".*") for x in part_of_symbol_list]
-        pattern_list = [re.compile(".*" + x.strip() + ".*") for x in part_of_symbol_list]
+        # pattern_list = [re.compile(".*" + x.strip() + ".*") for x in part_of_symbol_list]
+        pattern_list = [re.compile(x) for x in part_of_symbol_list]
         sourcedb_name = DataChannel.DEFAULT_ARCTIC_SOURCE_NAME if feeds_db else DataChannel.PERMANENT_ARCTIC_SOURCE_NAME
         return [symbol_match
                 for symbol_match in DataChannel.table_names(arctic_source_name=sourcedb_name)
