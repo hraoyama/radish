@@ -11,9 +11,11 @@ import pandas as pd
 import functools
 from datetime import datetime
 import numpy as np
+import multiprocessing
+from absl import logging
 
 
-class DataProcessor():
+class DataProcessor(object):
     MAKE_AVAILABLE_IN_FEEDS = True
 
     def __init__(self, *args, **kwargs):
@@ -41,17 +43,20 @@ class DataProcessor():
             if DataProcessor.MAKE_AVAILABLE_IN_FEEDS and not is_available_in_feeds:
                 DataChannel.upload(self._data, args[0], arctic_source_name='feeds', string_format=False)
         elif args and isinstance(args[0], list):
+            # n_processes = multiprocessing.cpu_count()
+            # with multiprocessing.Pool(processes=n_processes) as pool:
+            #     dps = pool.starmap(DataProcessor, args[0])
             dps = {}
             for symbol in args[0]:
+                logging.info(f'Load {symbol} data')
                 dp = DataProcessor(symbol)
-                if args[1] == 'ohlcv' and isinstance(args[2], TimeFreqFilter):
-                    dp = dp.ohlcv(args[2])
-                if dp:
-                    dps[symbol] = dp.data
+                dps[symbol] = dp.data
             if len(dps):
                 df = pd.concat(dps)
                 if isinstance(df.index[0][0], str) and isinstance(df.index[0][1], datetime):
                     df.index.names = ['Symbol', 'Start_Period']
+                    if 'Symbol' in df.columns:
+                        df.drop(columns=['Symbol'], inplace=True)
                 else:
                     raise TypeError(f'Index is {df.index[0]} is not (str, datetime)')
                 self._data = df.groupby(['Start_Period', 'Symbol']).first()
@@ -139,15 +144,47 @@ class DataProcessor():
     def summarize_intervals(self, time_freq_filter, funcs_list, column_name):
         return self.__getitem__((time_freq_filter, funcs_list, column_name))
 
-    def ohlcv(self, time_freq_filter: TimeFreqFilter) -> 'DataProcessor':
+    def ohlcv(self,
+              time_freq_filter: TimeFreqFilter,
+              inplace=False) -> 'DataProcessor':
         if self._data.shape[0] > 0:
+            self._data.rename(columns={col: col.upper() for col in self._data.columns}, inplace=True)
             time_freq = f'{time_freq_filter.length}{time_freq_filter.period.value}'
-            df_ohlcv = self._data["Price"].resample(time_freq).ohlc()
-            df_ohlcv['volume'] = self._data['Volume'].resample(time_freq).sum()
-            df_ohlcv.columns = [col.upper() for col in df_ohlcv.columns]
-            return DataProcessor(df_ohlcv)
+            if all([col in self._data.columns for col in ['PRICE', 'VOLUME']]):
+                df_ohlcv = self.ohlcv_from_price(time_freq)
+            elif all([col in self._data.columns for col in ['OPEN', 'HIGH', 'LOW', 'CLOSE', 'VOLUME']]):
+                df_ohlcv = self.ohlcv_from_ohlcv(time_freq)
+            else:
+                raise ValueError('There is no Price or Volume in data of DataProcessor.')
+            if inplace:
+                self._data = df_ohlcv
+            else:
+                return DataProcessor(df_ohlcv)
         else:
-            return None
+            raise ValueError('There is no data in DataProcessor.')
+
+    def ohlcv_from_price(self, time_freq):
+        df_ohlcv = self._data["PRICE"].unstack('Symbol').resample(time_freq).ohlc().stack('Symbol')
+        df_ohlcv.rename(columns={col: col.upper() for col in df_ohlcv.columns}, inplace=True)
+        df_ohlcv['VOLUME'] = self._data['VOLUME'].unstack('Symbol').resample(time_freq).sum().stack('Symbol')
+        df_ohlcv['VWAP'] = self._data.unstack('Symbol').resample(time_freq).apply(
+            lambda x: (x.PRICE * x.VOLUME).sum() / x.VOLUME.sum()).stack('Symbol')
+        df_ohlcv['ADV'] = df_ohlcv['CLOSE'].unstack('Symbol').resample(time_freq).mean().stack('Symbol')
+
+        return df_ohlcv
+
+    def ohlcv_from_ohlcv(self, time_freq):
+        df_ohlcv = pd.DataFrame()
+        df_ohlcv['OPEN'] = self._data['OPEN'].unstack('Symbol').resample(time_freq).first().stack('Symbol')
+        df_ohlcv['CLOSE'] = self._data['CLOSE'].unstack('Symbol').resample(time_freq).last().stack('Symbol')
+        df_ohlcv['HIGH'] = self._data['HIGH'].unstack('Symbol').resample(time_freq).max().stack('Symbol')
+        df_ohlcv['LOW'] = self._data['LOW'].unstack('Symbol').resample(time_freq).min().stack('Symbol')
+        df_ohlcv['VOLUME'] = self._data['VOLUME'].unstack('Symbol').resample(time_freq).sum().stack('Symbol')
+        df_ohlcv['VWAP'] = self._data.unstack('Symbol').resample(time_freq).apply(
+                    lambda x: (x.CLOSE * x.VOLUME).sum() / x.VOLUME.sum()).stack('Symbol')
+        df_ohlcv['ADV'] = self._data['CLOSE'].unstack('Symbol').resample(time_freq).mean().stack('Symbol')
+
+        return df_ohlcv
 
     def time_freq(self, *args, **kwargs):
         return self.__call__(TimeFreqFilter(*args, **kwargs))
@@ -220,12 +257,21 @@ class DataProcessor():
 
     @property
     def vwap(self):
-        pass
+        if 'VWAP' in self._data.columns:
+            return self._data['VWAP'].unstack('Symbol')
+        else:
+            return None
 
     @property
     def cap(self):
-        pass
+        if 'CAP' in self._data.columns:
+            return self._data['CAP'].unstack('Symbol')
+        else:
+            return None
 
     @property
     def adv(self, period: str):
-        pass
+        if 'ADV' in self._data.columns:
+            return self._data['ADV'].unstack('Symbol')
+        else:
+            return None
