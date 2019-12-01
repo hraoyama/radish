@@ -40,6 +40,13 @@ def test_data_channel():
     assert 'GOLD.TEMPORARY_TYPE' in DataChannel.check_register(["TEMPORARY_TYPE"], feeds_db=True)
     assert 'GOLD.TEMPORARY_TYPE' not in DataChannel.check_register(["TEMPORARY_TYPE"], feeds_db=False)
     assert DataChannel.redis.get('GOLD.TEMPORARY_TYPE') is not None
+    DataChannel.clear_redis(['GOLD'])
+    assert DataChannel.redis.get('GOLD.TEMPORARY_TYPE') is None
+
+    DataChannel.upload(ts1, table_name, put_in_redis=True)
+    assert DataChannel.redis.get('GOLD.TEMPORARY_TYPE') is not None
+    DataChannel.clear_redis()
+    assert DataChannel.redis.get('GOLD.TEMPORARY_TYPE') is None
 
     # DataChannel.upload_to_permanent()
     # DataChannel.upload_to_redis()
