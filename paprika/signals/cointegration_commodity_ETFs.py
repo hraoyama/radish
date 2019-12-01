@@ -2,60 +2,70 @@
 Cointegration strategy between triplet of ETFs (EWA, EWC, IGE)
 """
 
+from paprika.data.fetcher import DataType
+from paprika.data.feed_subscriber import FeedSubscriber
+from typing import List, Tuple
+from paprika.signals.signal_data import SignalData
+
 import numpy as np
 import pandas as pd
-import os
-import matplotlib.pyplot as plt
-from sklearn.linear_model import LinearRegression
-import utils
-import seaborn as sns
-sns.set()
+import logging
 
 
-def main():
+class CointegrationTriplet(FeedSubscriber):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.tickers = self.get_parameter("TICKERS")  # this has to be aligned with self.betas
+        self.betas = self.get_parameter("BETAS")  # should come from research or could be computed on the fly
+        self.half_life = self.get_parameter("HALF_LIFE")  # should come from research or could be computed on the fly
+        self.look_back = int(self.half_life)
+        self.unit_portfolios = []
+        self.prices = pd.DataFrame()
+        self.positions = pd.DataFrame()
 
-    df = pd.read_csv(os.path.join(utils.PATH, 'inputData_EWA_EWC_IGE.csv'))
-    df['Date'] = pd.to_datetime(df['Date'],  format='%Y%m%d').dt.date  # remove HH:MM:SS
-    df.set_index('Date', inplace=True)
+    def handle_event(self, events: List[Tuple[DataType, pd.DataFrame]]):
 
-    # df.plot()
-    # df.plot.scatter(x='EWA', y='EWC')
-    # plt.show()
+        super().handle_event(events)
+        if len(events) == 1:
+            event = events[0]
+            price_column = 'Price' if event[0] == DataType.TRADES else 'Adj Close'
+            data1 = event[1]
+            price_data = [data1[[ticker in symbol for symbol in data1['Symbol']]] for ticker in self.tickers]
+            last_index = price_data[0].index[-1]
 
-    results = LinearRegression().fit(df['EWA'].values.reshape(-1, 1), df['EWC'])
-    hedge_ratio = results.coef_[0]
-    print('hedgeRatio=%f' % hedge_ratio)
+            temp_dct = {'DateTime': [last_index]}
+            temp_dct.update({tick: [price_data[i][price_column][-1]] for i, tick in enumerate(self.tickers)})
+            temp_df = pd.DataFrame(temp_dct)
 
-    coint_t, pvalue, _ = utils.cadf_test(df['EWC'], df['EWA'])
-    print('t-statistic - {} and p-value - {}'.format(coint_t, pvalue))
+            self.prices = self.prices.append(temp_df)
+            unit_portfolio = np.dot(temp_df[self.tickers].values, self.betas)[0]
 
-    result = utils.johansen_test(df[['EWA', 'EWC']].values, det_order=0, k_ar_diff=1)
-    print('Trace statistic - {} and critical values - {}'.format(result.lr1, result.cvt))
-    print('Trace statistic - {} and critical values - {}'.format(result.lr2, result.cvm))
+            if len(self.prices) < self.look_back:
 
-    result = utils.johansen_test(df.values, det_order=0, k_ar_diff=1)
-    print('Trace statistic - {} and critical values - {}'.format(result.lr1, result.cvt))
-    print('Trace statistic - {} and critical values - {}'.format(result.lr2, result.cvm))
+                temp_dct2 = {'DateTime': [last_index]}
+                temp_dct2.update({tick: [np.nan] for tick in self.tickers})
+                temp_df2 = pd.DataFrame(temp_dct2)
 
-    # (net) market value of portfolio
-    yport = pd.Series(np.dot(df.values, result.evec[:, 0]))
-    half_life = utils.half_life(yport)
-    print('Half life = {} days'.format(half_life))
+                self.unit_portfolios.append(unit_portfolio)
+                self.positions = self.positions.append(temp_df2)
+            else:
 
-    #  Apply a simple linear mean reversion strategy to EWA-EWC-IGE
-    lookback = np.round(half_life).astype(int)  # setting lookback to the halflife found above
-    # Capital invested in portfolio in dollars.
-    num_units = -(yport - yport.rolling(lookback).mean()) / yport.rolling(lookback).std()
+                num_units = -(unit_portfolio - np.nanmean(self.unit_portfolios[-self.look_back:])) / \
+                               np.nanstd(self.unit_portfolios[-self.look_back:], ddof=1)
 
-    # results.evec(:, 1)' can be viewed as the capital allocation, while positions is the dollar capital in each ETF.
-    positions = pd.DataFrame(np.dot(num_units.values.reshape(-1, 1), np.expand_dims(result.evec[:, 0], axis=1).T)
-                             * df.values)
-    returns = utils.returns_calculator(df, 1)
+                temp_dct2 = {'DateTime': [last_index]}
+                temp_dct2.update({tick: [num_units*beta*temp_df[tick].values[0]]
+                                  for tick, beta in zip(self.tickers, self.betas)})
+                temp_df2 = pd.DataFrame(temp_dct2)
 
-    pnl = utils.portfolio_return_calculator(positions, returns)  # daily P&L of the strategy
-    ret = pnl / np.sum(np.abs(positions.shift()), axis=1)
-    _ = utils.stats_print(df.index, ret)
+                self.positions = self.positions.append(temp_df2)
+                logging.info(f'{self.positions}')
+        else:
+            logging.info(f'There are {len(events)} events.')
 
-
-if __name__ == "__main__":
-    main()
+    def signal_data(self):
+        return SignalData(self.__class__.__name__,
+                          [("positions", SignalData.create_indexed_frame(
+                              self.positions[[self.y_name, self.x_name]].fillna(method='ffill'))),
+                           ("prices", SignalData.create_indexed_frame(self.prices)),
+                           ("unit_portfolios", SignalData.create_indexed_frame(self.unit_portfolios))])

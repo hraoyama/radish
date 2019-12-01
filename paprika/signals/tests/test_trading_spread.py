@@ -21,14 +21,15 @@ def test_trading_spread():
 
     gold_uso_signal.run()
     gold_uso_spreads = gold_uso_signal.spreads[gold_uso_signal.lookback:]
-    gold_uso_spreads.plot()
-    plt.show()
-
     gold_uso_positions = gold_uso_signal.positions[gold_uso_signal.lookback:]
     gold_uso_prices = gold_uso_signal.prices[gold_uso_signal.lookback:]
+    plt.plot(gold_uso_prices['DateTime'], gold_uso_spreads)
+    plt.show()
 
-    gold_uso_returns = utils.returns_calculator(gold_uso_prices[[gold_uso_signal.y_name, gold_uso_signal.x_name]], 1)
-    gold_uso_pnl = utils.portfolio_return_calculator(gold_uso_positions, gold_uso_returns)  # daily P&L of the strategy
-    strategy_return = gold_uso_pnl / np.sum(np.abs(gold_uso_positions.shift()), axis=1)
+    column_names = [gold_uso_signal.y_name, gold_uso_signal.x_name]
+    gold_uso_returns = utils.returns_calculator(gold_uso_prices[column_names], 1)
+    # daily P&L of the strategy
+    gold_uso_pnl = utils.portfolio_return_calculator(gold_uso_positions[column_names], gold_uso_returns)
+    strategy_return = gold_uso_pnl / np.sum(np.abs(gold_uso_positions[column_names].shift()), axis=1)
     strategy_return[strategy_return.isnull()] = 0
     _ = utils.stats_print(gold_uso_prices['DateTime'], strategy_return)

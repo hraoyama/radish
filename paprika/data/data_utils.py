@@ -45,7 +45,7 @@ def OHLCVAC_upload(ticker: str, input_path, to_feeds=False, to_redis=False, to_p
         if "OHLCVAC_PRICE" not in [str(x) for x in DataType]:
             DataType.extend("OHLCVAC_PRICE")
         table_name = DataChannel.name_to_data_type(ticker.upper().strip(), DataType.OHLCVAC_PRICE)
-        print(f'Attempting to upload {table_name}')
+        print(f'Uploading {table_name}')
         if to_feeds:
             return DataChannel.upload(df, table_name, put_in_redis=to_redis)
         if to_permanent:
