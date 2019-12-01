@@ -15,4 +15,4 @@ def test_data_type():
     
     print(list(DataType))
     
-    assert len(list(DataType)) == 5
+    assert len(list(DataType)) == 6
