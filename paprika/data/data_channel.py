@@ -46,7 +46,13 @@ class DataChannel:
                         table_name: str):
         DataChannel.redis.set(table_name, data_frame.to_msgpack(compress='blosc'))
         logging.info(f"Uploaded Redis {table_name} on {DataChannel.DEFAULT_ARCTIC_HOST}")
-    
+
+    @staticmethod
+    def clear_redis():
+        for redis_key in DataChannel.redis.keys():
+            # print("Deleting redis table " + str(redis_key))
+            DataChannel.redis.delete(redis_key)
+
     @staticmethod
     def upload(data_frame: pd.DataFrame,
                table_name: str,
