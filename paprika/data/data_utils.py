@@ -53,3 +53,60 @@ def OHLCVAC_upload(ticker: str, input_path, to_feeds=False, to_redis=False, to_p
                                       arctic_source_name=DataChannel.PERMANENT_ARCTIC_SOURCE_NAME,
                                       put_in_redis=to_redis)
     return None
+
+
+def EOD_EURONEXT_upload_given_columns(symbol_ohlcv, stocks):
+    symbol = symbol_ohlcv[0].split('-')[0].split('/')[1].strip()
+    try:
+        df = stocks[symbol_ohlcv][:]
+    except KeyError:
+        print(f'Can not find {symbol}')
+        return None, None, None
+    df.loc[:, 'Symbol'] = symbol
+    df.rename(columns={f'EURONEXT/{symbol} - Open': 'Open',
+                       f'EURONEXT/{symbol} - High': 'High',
+                       f'EURONEXT/{symbol} - Low': 'Low',
+                       f'EURONEXT/{symbol} - Last': 'Close',
+                       f'EURONEXT/{symbol} - Volume': 'Volume',
+                       f'EURONEXT/{symbol} - Turnover': 'Turnover'}, inplace=True)
+    df.index.name = 'date'
+    DataType.extend("EOD")
+    table_name = DataChannel.name_to_data_type(f"EURONEXT.{symbol}", DataType.EOD)
+    print(f'Uploading {table_name}')
+    return DataChannel.upload(df, table_name,
+                              is_overwrite=True,
+                              arctic_source_name=DataChannel.PERMANENT_ARCTIC_SOURCE_NAME,
+                              put_in_redis=False)
+
+
+def EOD_upload_given_columns(index_name, symbol_ohlcv, stocks, city_id):
+    # symbol_ohlcv = the list of column names
+    # stocks = the data frame with everything
+    symbol = symbol_ohlcv[0].split('.')[0].strip()
+    try:
+        df = stocks[symbol_ohlcv][:]
+    except KeyError:
+        print(f'Can not find {symbol}')
+        return None, None, None
+    
+    df.loc[:, 'Symbol'] = symbol
+    if city_id is not None:
+        df.rename(columns={f'{symbol}.{city_id}.Open': 'Open',
+                           f'{symbol}.{city_id}.High': 'High',
+                           f'{symbol}.{city_id}.Low': 'Low',
+                           f'{symbol}.{city_id}.Close': 'Close',
+                           f'{symbol}.{city_id}.Volume': 'Volume'}, inplace=True)
+    else:
+        df.rename(columns={f'{symbol}.Open': 'Open',
+                           f'{symbol}.High': 'High',
+                           f'{symbol}.Low': 'Low',
+                           f'{symbol}.Close': 'Close',
+                           f'{symbol}.Volume': 'Volume'}, inplace=True)
+    df.index.name = 'date'
+    DataType.extend("EOD")
+    table_name = DataChannel.name_to_data_type(f"{index_name}.{symbol}", DataType.EOD)
+    print(f'Uploading {table_name}')
+    return DataChannel.upload(df, table_name,
+                              is_overwrite=True,
+                              arctic_source_name=DataChannel.PERMANENT_ARCTIC_SOURCE_NAME,
+                              put_in_redis=False)

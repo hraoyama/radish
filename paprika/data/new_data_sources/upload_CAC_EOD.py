@@ -1,19 +1,21 @@
 import pandas as pd
-import numpy as np
 import os
 
-from paprika.data.data_type import DataType
 from paprika.data.data_channel import DataChannel
-from paprika.utils import utils
+from paprika.data.data_utils import EOD_upload_given_columns
+from multiprocessing import Process
 
-PATH = r'/Users/fangxia/Google Drive/stocks/eod'
+PATH = r'../../../resources/data/'
 
 
 def main():
+    to_remove_list = DataChannel.check_register(['CAC.*EOD'], feeds_db=False)
+    for to_remove in to_remove_list:
+        DataChannel.delete_table(to_remove, arctic_source_name=DataChannel.PERMANENT_ARCTIC_SOURCE_NAME)
+    
     stocks = pd.read_csv(os.path.join(PATH, 'CAC40_20070102_20190211.csv'))
     stocks['Index'] = pd.to_datetime(stocks.Index)
     stocks.set_index('Index', inplace=True)
-
     symbols = set([symbol.split('.')[0].strip() for symbol in stocks.columns])
     symbols_ohlcv = [[f'{symbol}.PA.Open',
                       f'{symbol}.PA.High',
@@ -21,27 +23,14 @@ def main():
                       f'{symbol}.PA.Close',
                       f'{symbol}.PA.Volume']
                      for symbol in symbols]
-    for symbol_ohlcv in symbols_ohlcv:
-        symbol = symbol_ohlcv[0].split('.')[0].strip()
-        try:
-            df = stocks[symbol_ohlcv]
-        except KeyError:
-            print(f'Can not find {symbol}')
-            continue
-        df.loc[:, 'Symbol'] = symbol
-        df.rename(columns={f'{symbol}.PA.Open': 'Open',
-                           f'{symbol}.PA.High': 'High',
-                           f'{symbol}.PA.Low': 'Low',
-                           f'{symbol}.PA.Close': 'Close',
-                           f'{symbol}.PA.Volume': 'Volume'}, inplace=True)
-        df.index.name = 'date'
-        DataType.extend("EOD")
-        table_name = DataChannel.name_to_data_type(f"CAC.{symbol}", DataType.EOD)
-        DataChannel.upload(df, table_name,
-                           is_overwrite=True,
-                           arctic_source_name=DataChannel.PERMANENT_ARCTIC_SOURCE_NAME,
-                           put_in_redis=False)
-        print(f'Uploaded {table_name}')
+    index_name = 'CAC'
+    city_id = 'PA'
+    ps = [Process(target=EOD_upload_given_columns, args=(index_name, symbol_ohlcv, stocks, city_id)) for symbol_ohlcv in
+          symbols_ohlcv]
+    for p in ps:
+        p.start()
+    for p in ps:
+        p.join()
 
 
 if __name__ == "__main__":
