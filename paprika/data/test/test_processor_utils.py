@@ -1,7 +1,7 @@
-from paprika.exchange.data_processor import DataProcessor
+from paprika.data.data_processor import DataProcessor
 from paprika.data.data_type import DataType
-from paprika.exchange.processor_utils import get_return_series
-from paprika.exchange.processor_utils import merge_data_frames_in_dict_values
+from paprika.data.processor_utils import get_return_series
+from paprika.data.processor_utils import merge_data_frames_in_dict_values
 from paprika.core.function_utils import \
     add_return_to_dict_or_pandas_col_decorator  # , add_return_to_pandas_indexed_col_decorator
 

@@ -1,7 +1,7 @@
 from paprika.utils.record import Timeseries
 from paprika.data.data_type import DataType
 from paprika.data.data_channel import DataChannel
-from paprika.exchange.data_processor import DataProcessor
+from paprika.data.data_processor import DataProcessor
 
 from datetime import datetime, timedelta
 from pprint import pprint as pp

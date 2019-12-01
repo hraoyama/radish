@@ -50,17 +50,22 @@ class Dist(defaultdict):
             return Dist({k: a[k] / b[k] for k in keys})
         raise NotImplementedError()
 
+    def abs(self):
+        return Dist({k: abs(v) for k, v in self.items()})
+
     def readonly(self) -> 'Dist':
         """Returns a shallow copy"""
         return Dist(self)
 
     def normalize(self) -> 'NormDist':
-        total = float_type()(sum(self.values()))
+        total = float_type()(sum([abs(k) for k in self.values()]))
         if isclose(total, 0):
             raise ValueError('Distribution sum is too close to zero')
 
         return NormDist({k: (float_type()(v) / total) for k, v in self.items()})
 
+    def sum(self) -> float:
+        return float_type()(sum(self.values()))
 
 class NormDist(Dist):
     """Normalized distribution, i.e. the sum is 1"""
