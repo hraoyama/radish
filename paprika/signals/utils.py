@@ -1,13 +1,14 @@
 from statsmodels.tsa.stattools import coint, adfuller
 from sklearn.linear_model import LinearRegression
 from scipy.stats import pearsonr
-#from genhurst import genhurst
-
+import os
 import numpy as np
 import pandas as pd
 import statsmodels.tsa.vector_ar.vecm as vm
 import matplotlib.pyplot as plt
-PATH = r'data'
+# from genhurst import genhurst
+
+PATH = os.path.join(os.path.abspath(os.path.join(__file__, "../../..")), r"resources\data")
 
 
 def sharpe(excess_returns, period):

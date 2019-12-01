@@ -4,7 +4,7 @@ long-only portfolio with IGE
 long-short market-neutral portfolio (long IGE, short SPY)
 """
 
-import utils
+from paprika.signals import utils
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sn
@@ -12,8 +12,8 @@ import os
 sn.set()
 
 
-
 def main():
+
     ts1 = pd.read_excel(os.path.join(utils.PATH, 'IGE.xls'))
     ts1 = ts1.sort_values(by=['Date'])
     ts1 = ts1.reset_index(drop=True)

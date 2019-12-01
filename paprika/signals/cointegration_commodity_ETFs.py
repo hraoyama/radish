@@ -18,7 +18,7 @@ class CointegrationTriplet(FeedSubscriber):
         self.tickers = self.get_parameter("TICKERS")  # this has to be aligned with self.betas
         self.betas = self.get_parameter("BETAS")  # should come from research or could be computed on the fly
         self.half_life = self.get_parameter("HALF_LIFE")  # should come from research or could be computed on the fly
-        self.look_back = int(self.half_life)
+        self.look_back = np.round(self.half_life).astype(int)
         self.unit_portfolios = []
         self.prices = pd.DataFrame()
         self.positions = pd.DataFrame()
@@ -36,6 +36,7 @@ class CointegrationTriplet(FeedSubscriber):
             temp_dct = {'DateTime': [last_index]}
             temp_dct.update({tick: [price_data[i][price_column][-1]] for i, tick in enumerate(self.tickers)})
             temp_df = pd.DataFrame(temp_dct)
+            temp_df = temp_df[['DateTime'] + self.tickers]  # ensure the consistency of tickers' order
 
             self.prices = self.prices.append(temp_df)
             unit_portfolio = np.dot(temp_df[self.tickers].values, self.betas)[0]
@@ -50,6 +51,7 @@ class CointegrationTriplet(FeedSubscriber):
                 self.positions = self.positions.append(temp_df2)
             else:
 
+                self.unit_portfolios.append(unit_portfolio)
                 num_units = -(unit_portfolio - np.nanmean(self.unit_portfolios[-self.look_back:])) / \
                                np.nanstd(self.unit_portfolios[-self.look_back:], ddof=1)
 

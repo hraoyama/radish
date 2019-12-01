@@ -5,7 +5,7 @@ from multiprocessing import Process
 # not in a separate function because of the multiprocessing module on Windows
 if __name__ == "__main__":
     
-    tickers = ['GLD', 'GDX', 'IGE', 'KO', 'OIH', 'PEP', 'RKH', 'RTH', 'SPY', 'GLD2', 'USO', 'EWA', 'EWC']
+    tickers = ['GLD', 'GDX', 'IGE', 'KO', 'OIH', 'PEP', 'RKH', 'RTH', 'SPY', 'GLD2', 'USO', 'EWA', 'EWC', 'IGE2']
     existing_table_names = DataChannel.check_register([x + ".OHLCVAC_PRICE" for x in tickers], feeds_db=False)
     for table_to_remove in existing_table_names:
         DataChannel.delete_table(table_to_remove, arctic_source_name=DataChannel.PERMANENT_ARCTIC_SOURCE_NAME)

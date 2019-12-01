@@ -8,7 +8,7 @@ from paprika.signals import utils
 
 def test_signal_cointegration_triplet():
 
-    tickers = ["EWA", "EWC", "IGE"]
+    tickers = ["EWA", "EWC", "IGE2"]
     triplet_feed = Feed('COMMODITY_SPREAD', datetime(2000, 7, 1), datetime(2020, 1, 1))
     triplet_feed.set_feed(tickers, DataType.OHLCVAC_PRICE, how='inner')
     etf_weights = np.array([0.7599635, -1.04602749,  0.22330592])
