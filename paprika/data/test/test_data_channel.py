@@ -9,8 +9,8 @@ import numpy as np
 def test_data_channel():
     DataChannel.clear_all_feeds()
     
-    DataChannel.check_register(["GLD2", "USO"], feeds_db=False)
-    gld = DataChannel.download('GLD2.OHLCVAC_PRICE', DataChannel.PERMANENT_ARCTIC_SOURCE_NAME, use_redis=False)
+    DataChannel.check_register(["GOLD2", "USO"], feeds_db=False)
+    gld = DataChannel.download('GOLD2.OHLCVAC_PRICE', DataChannel.PERMANENT_ARCTIC_SOURCE_NAME, use_redis=False)
     gdx = DataChannel.download('USO.OHLCVAC_PRICE', DataChannel.PERMANENT_ARCTIC_SOURCE_NAME, use_redis=False)
     assert np.all(gld.index == gdx.index)
     

@@ -1,4 +1,6 @@
 from datetime import datetime
+
+from paprika.data.data_channel import DataChannel
 from paprika.data.data_type import DataType
 from paprika.data.feed import Feed
 from paprika.signals.trading_spread import DynamicSpread
@@ -12,11 +14,13 @@ sns.set()
 
 def test_trading_spread():
 
-    tickers = ["GLD2", "USO"]
-    gold_uso_feed = Feed('GLD_USO_SPREAD', datetime(2000, 7, 1), datetime(2020, 1, 1))
+    DataChannel.clear_redis()
+
+    tickers = ["GOLD2", "USO"]
+    gold_uso_feed = Feed('GOLD_USO_SPREAD', datetime(2000, 7, 1), datetime(2020, 1, 1))
     gold_uso_feed.set_feed(tickers, DataType.OHLCVAC_PRICE, how='inner')
 
-    gold_uso_signal = DynamicSpread(LOOKBACK=20, Y_NAME="USO", X_NAME="GLD2")
+    gold_uso_signal = DynamicSpread(LOOKBACK=20, Y_NAME="USO", X_NAME="GOLD2")
     gold_uso_feed.add_subscriber(gold_uso_signal)
 
     gold_uso_signal.run()

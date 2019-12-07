@@ -1,4 +1,4 @@
-# Example 5.1: Pair Trading USD.AUD vs USD.CAD Using the Johansen Eigenvector
+    # Example 5.1: Pair Trading USD.AUD vs USD.CAD Using the Johansen Eigenvector
 
 import numpy as np
 import pandas as pd

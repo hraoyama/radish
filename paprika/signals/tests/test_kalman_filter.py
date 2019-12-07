@@ -1,4 +1,6 @@
 from datetime import datetime
+
+from paprika.data.data_channel import DataChannel
 from paprika.data.data_type import DataType
 from paprika.data.feed import Feed
 from paprika.signals.simple_kalman_filter import SimpleKalmanSignal
@@ -11,6 +13,8 @@ sns.set()
 
 
 def test_kalman_filter():
+    
+    DataChannel.clear_redis()
 
     tickers = ["EWA", "EWC"]
     ewa_ewc_feed = Feed('EWA_EWC_kalman', datetime(2000, 7, 1), datetime(2020, 1, 1))
