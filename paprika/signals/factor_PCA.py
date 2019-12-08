@@ -2,7 +2,7 @@ from sklearn.linear_model import LinearRegression
 import pandas as pd
 import os
 import numpy as np
-import utils
+from paprika.utils import utils
 
 
 def main():

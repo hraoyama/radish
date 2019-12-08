@@ -1,7 +1,7 @@
 # Hypothesis Testing on a Futures Momentum Strategy
 import numpy as np
 import pandas as pd
-import utils
+from paprika.utils import utils
 import os
 from scipy.stats import pearson3
 

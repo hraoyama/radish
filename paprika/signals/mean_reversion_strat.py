@@ -5,8 +5,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import os
-from genhurst import genhurst
-import utils
+from paprika.signals.genhurst import genhurst
+from paprika.utils import utils
 sns.set()
 
 

@@ -1,9 +1,9 @@
+from paprika.utils import utils
 from datetime import datetime
 from paprika.data.data_type import DataType
 from paprika.data.feed import Feed
 from paprika.signals.cointegration_commodity_ETFs import CointegrationTriplet
 import numpy as np
-from paprika.signals import utils
 
 
 def test_signal_cointegration_triplet():

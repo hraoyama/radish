@@ -4,11 +4,11 @@ long-only portfolio with IGE
 long-short market-neutral portfolio (long IGE, short SPY)
 """
 
-from paprika.signals import utils
+from paprika.utils import utils
 import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sn
 import os
+import seaborn as sn
 sn.set()
 
 

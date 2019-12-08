@@ -2,15 +2,14 @@
 from paprika.core.base_signal import Signal
 from paprika.data.fetcher import DataType
 from paprika.data.feed_subscriber import FeedSubscriber
+from paprika.signals.signal_data import SignalData
+from sklearn.linear_model import LinearRegression
 
 import numpy as np
 import pandas as pd
 import re
 from typing import List, Tuple
 import logging
-
-from paprika.signals.signal_data import SignalData
-from sklearn.linear_model import LinearRegression
 
 
 class DynamicSpread(FeedSubscriber, Signal):
