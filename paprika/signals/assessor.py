@@ -15,7 +15,7 @@ from paprika.signals.signal_data import SignalData
 
 
 class Assessor:
-    # should we think about asessing multiple signals at once ? yes!
+    # should we think about assessing multiple signals at once ? yes!
     _data = None
     _derived_data = defaultdict()
 
