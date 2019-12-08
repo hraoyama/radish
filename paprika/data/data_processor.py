@@ -1,3 +1,4 @@
+from paprika.core.function_utils import add_return_to_dict_or_pandas_col_decorator
 from paprika.data.feed_filter import FilterInterface
 from paprika.data.data_channel import DataChannel
 from paprika.utils.utils import apply_func, summarize
@@ -5,6 +6,7 @@ from paprika.data.feed_filter import TimeFreqFilter, TimePeriod
 
 from haidata.extract_returns import extract_returns
 from functools import partial
+from collections import defaultdict
 
 import pandas as pd
 import functools
@@ -16,8 +18,14 @@ from absl import logging
 
 class DataProcessor(object):
     MAKE_AVAILABLE_IN_FEEDS = True
+    STATIC_DATA_CACHE = defaultdict
+
+    @classmethod
+    def clear_data_cache(cls):
+        cls.STATIC_DATA_CACHE = defaultdict
 
     @staticmethod
+    @add_return_to_dict_or_pandas_col_decorator(STATIC_DATA_CACHE)
     def create(*args, **kwargs):
         return DataProcessor(*args, **kwargs)
 
@@ -56,7 +64,7 @@ class DataProcessor(object):
                 p.join()
             dps = {}
             for counter, symbol in enumerate(args[0]):
-                dps[symbol] = ps[counter].data
+                dps[symbol] = DataProcessor.STATIC_DATA_CACHE[symbol].data
             if len(dps):
                 df = pd.concat(dps)
                 if isinstance(df.index[0][0], str) and isinstance(df.index[0][1], datetime):
