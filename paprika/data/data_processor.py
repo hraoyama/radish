@@ -17,6 +17,10 @@ from absl import logging
 class DataProcessor(object):
     MAKE_AVAILABLE_IN_FEEDS = True
 
+    @staticmethod
+    def create(*args, **kwargs):
+        return DataProcessor(*args, **kwargs)
+
     def __init__(self, *args, **kwargs):
         if isinstance(args[0], pd.DataFrame):
             self._data = args[0]
@@ -45,7 +49,7 @@ class DataProcessor(object):
             # n_processes = multiprocessing.cpu_count()
             # with multiprocessing.Pool(processes=n_processes) as pool:
             #     dps = pool.starmap(DataProcessor, args[0])
-            ps = [Process(target=DataProcessor.__init__, args=symbol) for symbol in args[0]]
+            ps = [Process(target=DataProcessor.create, args=symbol) for symbol in args[0]]
             for p in ps:
                 p.start()
             for p in ps:
