@@ -220,8 +220,8 @@ def stats_print(time_idx, returns, rotation=0):
     plt.plot(time_idx, cum_ret)
     plt.xticks(rotation=rotation)
     plt.show()
+    max_dd, max_dd_duration = drawdown_calculator(returns)
 
     print('APR={:.2f} and Sharpe={:.2f}'.format(np.prod(1 + returns) ** (252 / len(returns)) - 1, sharpe(returns, 252)))
-    max_dd, max_dd_duration = drawdown_calculator(returns)
     print('Maximum Drawdown={:.2f} and Maximum Drawdown Duration={:.2f}'.format(max_dd, max_dd_duration))
     return cum_ret

@@ -1,18 +1,18 @@
+from paprika.utils.time import datetime_to_millis, millis_for_frequency, seconds_for_frequency
+from paprika.utils.types import float_type
+from statsmodels.tsa.stattools import coint, adfuller
+from sklearn.linear_model import LinearRegression
+
 from datetime import datetime
 from math import ceil, floor
 from typing import Any, Type
+from scipy.stats import pearsonr
 
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from statsmodels.tsa.stattools import coint, adfuller
-from sklearn.linear_model import LinearRegression
-from scipy.stats import pearsonr
-
-
-from paprika.utils.time import datetime_to_millis, millis_for_frequency, seconds_for_frequency
-from paprika.utils.types import float_type
-
+import seaborn as sns
+sns.set()
 EPS = 1e-8
 
 
@@ -358,6 +358,8 @@ def stats_print(time_idx, returns, rotation=0):
     plt.plot(time_idx, cum_ret)
     plt.xticks(rotation=rotation)
     plt.show()
+    max_dd, max_dd_dur = drawdown_calculator(returns.values)
 
     print('APR={:.2f} and Sharpe={:.2f}'.format(np.prod(1 + returns) ** (252 / len(returns)) - 1, sharpe(returns, 252)))
+    print('Max DD=%f Max DDD in days=%i' % (max_dd, max_dd_dur))
     return

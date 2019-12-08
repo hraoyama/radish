@@ -2,35 +2,64 @@
 # This one is not profitable, but can be used as one of the signals
 # Mean reversion works though
 
+from paprika.data.fetcher import DataType
+from paprika.data.feed_subscriber import FeedSubscriber
+from typing import List, Tuple
+from paprika.signals.signal_data import SignalData
+
 import numpy as np
 import pandas as pd
-import utils
-import os
+import logging
 
 
-def main():
+class GapFutures(FeedSubscriber):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.zscore = self.get_parameter("zscore")
+        self.ticker = self.get_parameter("ticker")
+        self.look_back = self.get_parameter("look_back")
+        self.prices = pd.DataFrame()
+        self.returns = []
+        self.positions = []
 
-    entry_zscore = 0.1
-    df = pd.read_csv(os.path.join(utils.PATH, 'inputDataDaily_FSTX_20120517.csv'))
-    df['Date'] = pd.to_datetime(df['Date'], format='%Y%m%d').dt.date  # remove HH:MM:SS
-    df.set_index('Date', inplace=True)
+    def handle_event(self, events: List[Tuple[DataType, pd.DataFrame]]):
 
-    vol_estimate = utils.returns_calculator(df['Close'], 1).rolling(90).std().shift(1)
+        super().handle_event(events)
+        if len(events) == 1:
+            event = events[0]
+            data1 = event[1]
+            last_index = data1.index[0]
 
-    longs = df['Open'] >= (df['High'].shift(1) * (1 + entry_zscore * vol_estimate))
-    shorts = df['Open'] <= (df['Low'].shift(1) * (1 - entry_zscore * vol_estimate))
+            temp_dct = {'DateTime': [last_index],
+                        'Open': data1['Open'].values[0],
+                        'High': data1['High'].values[0],
+                        'Low': data1['Low'].values[0],
+                        'Close': data1['Close'].values[0]}
 
-    positions = np.zeros(longs.shape)
-    positions[longs] = -1
-    positions[shorts] = 1
-    ret = positions * (df['Close'] - df['Open']) / df['Open']
-    ret[ret.isnull()] = 0
+            self.prices = self.prices.append(pd.DataFrame(temp_dct))
+            if self.prices.shape[0] == 1:
+                self.returns.append(np.nan)
+            else:
+                self.returns.append(self.prices['Close'].values[-1] / self.prices['Close'].values[-2] - 1)
 
-    _ = utils.stats_print(df.index, ret)
-    max_dd, max_dd_dur = utils.drawdown_calculator(ret.values)
+            if len(self.prices) < self.look_back:
+                self.positions.append(0)
+            else:
+                vol = np.std(np.array(self.returns[-self.look_back:]), ddof=1)
+                op = temp_dct['Open']
 
-    print('Max DD=%f Max DDD in days=%i' % (max_dd, max_dd_dur))
+                if op >= self.prices['High'].values[-2] * (1 + self.zscore * vol):
+                    self.positions.append(-1)
+                elif op <= self.prices['Low'].values[-2] * (1 - self.zscore * vol):
+                    self.positions.append(1)
+                else:
+                    self.positions.append(0)
 
+                logging.info(f'{self.positions}')
+        else:
+            logging.info(f'There are {len(events)} events.')
 
-if __name__ == "__main__":
-    main()
+    def signal_data(self):
+        return SignalData(self.__class__.__name__,
+                          [("positions", SignalData.create_indexed_frame(self.positions)),
+                           ("prices", SignalData.create_indexed_frame(self.prices))])
