@@ -12,6 +12,7 @@ import functools
 from datetime import datetime
 import numpy as np
 import multiprocessing
+from multiprocessing import Process
 from absl import logging
 
 
@@ -45,12 +46,15 @@ class DataProcessor(object):
         elif args and isinstance(args[0], list):
             # n_processes = multiprocessing.cpu_count()
             # with multiprocessing.Pool(processes=n_processes) as pool:
-            #     dps = pool.starmap(DataProcessor, args[0])
+            #      dps = pool.starmap(DataProcessor, args[0])
+            ps = [Process(target=DataProcessor.__init__, args=symbol) for symbol in args[0]]
+            for p in ps:
+                p.start()
+            for p in ps:
+                p.join()
             dps = {}
-            for symbol in args[0]:
-                logging.info(f'Load {symbol} data')
-                dp = DataProcessor(symbol)
-                dps[symbol] = dp.data
+            for counter, symbol in enumerate(args[0]):
+                dps[symbol] = ps[counter].data
             if len(dps):
                 df = pd.concat(dps)
                 if isinstance(df.index[0][0], str) and isinstance(df.index[0][1], datetime):
