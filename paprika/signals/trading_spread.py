@@ -68,7 +68,7 @@ class DynamicSpread(FeedSubscriber, Signal):
                 execute = True
                 self.y_data = y_data
                 self.x_data = x_data
-                if len(self.y_data.index) <1:
+                if len(self.y_data.index) < 1:
                     print(str(self.y_data))
 
                 last_index = self.y_data.index[-1]
