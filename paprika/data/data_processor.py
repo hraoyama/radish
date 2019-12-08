@@ -3,15 +3,13 @@ from paprika.data.data_channel import DataChannel
 from paprika.utils.utils import apply_func, summarize
 from paprika.data.feed_filter import TimeFreqFilter, TimePeriod
 
-from haidata.fix_colnames import fix_colnames
 from haidata.extract_returns import extract_returns
 from functools import partial
 
 import pandas as pd
 import functools
 from datetime import datetime
-import numpy as np
-import multiprocessing
+from multiprocessing import Process
 from typing import Optional
 from absl import logging
 
@@ -47,11 +45,14 @@ class DataProcessor(object):
             # n_processes = multiprocessing.cpu_count()
             # with multiprocessing.Pool(processes=n_processes) as pool:
             #     dps = pool.starmap(DataProcessor, args[0])
+            ps = [Process(target=DataProcessor.__init__, args=symbol) for symbol in args[0]]
+            for p in ps:
+                p.start()
+            for p in ps:
+                p.join()
             dps = {}
-            for symbol in args[0]:
-                logging.info(f'Load {symbol} data')
-                dp = DataProcessor(symbol)
-                dps[symbol] = dp.data
+            for counter, symbol in enumerate(args[0]):
+                dps[symbol] = ps[counter].data
             if len(dps):
                 df = pd.concat(dps)
                 if isinstance(df.index[0][0], str) and isinstance(df.index[0][1], datetime):
