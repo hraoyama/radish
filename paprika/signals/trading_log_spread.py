@@ -1,5 +1,4 @@
 # Trading Log Price Spread
-# Trading Price Spread
 from paprika.core.base_signal import Signal
 from paprika.data.fetcher import DataType
 from paprika.data.feed_subscriber import FeedSubscriber
