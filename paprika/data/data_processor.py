@@ -15,11 +15,9 @@ from multiprocessing import Process
 from typing import Optional
 from absl import logging
 
+class DataProcessorFactory(object):
 
-class DataProcessor(object):
-    MAKE_AVAILABLE_IN_FEEDS = True
-    STATIC_DATA_CACHE = defaultdict
-
+    STATIC_DATA_CACHE = dict()
     @classmethod
     def clear_data_cache(cls):
         cls.STATIC_DATA_CACHE = defaultdict
@@ -28,6 +26,10 @@ class DataProcessor(object):
     @add_return_to_dict_or_pandas_col_decorator(STATIC_DATA_CACHE)
     def create(*args, **kwargs):
         return DataProcessor(*args, **kwargs)
+
+
+class DataProcessor(object):
+    MAKE_AVAILABLE_IN_FEEDS = True
 
     def __init__(self, *args, **kwargs):
         if isinstance(args[0], pd.DataFrame):
@@ -50,25 +52,33 @@ class DataProcessor(object):
                     kwargs = dict({"arctic_source_name": 'feeds', "string_format": False})
                 else:
                     kwargs = dict({"arctic_source_name": 'mdb', "string_format": False})
+            dict_to_add_to = None
+            if "add_to_dict" in kwargs:
+                dict_to_add_to = kwargs["add_to_dict"]
+                del kwargs["add_to_dict"]
             self._data = DataChannel.download(args[0], *args[1:], **kwargs)
+            if dict_to_add_to is not None:
+                dict_to_add_to[args[0]] = self._data
             if DataProcessor.MAKE_AVAILABLE_IN_FEEDS and not is_available_in_feeds:
                 DataChannel.upload(self._data, args[0], arctic_source_name='feeds', string_format=False)
         elif args and isinstance(args[0], list):
             # n_processes = multiprocessing.cpu_count()
             # with multiprocessing.Pool(processes=n_processes) as pool:
             #     dps = pool.starmap(DataProcessor, args[0])
-            ps = [Process(target=DataProcessor.create, args=symbol) for symbol in args[0]]
+            ps = [Process(target=DataProcessorFactory.create,
+                          args=(symbol,),
+                          kwargs={'add_to_dict': DataProcessorFactory.STATIC_DATA_CACHE}) for symbol in args[0]]
             for p in ps:
                 p.start()
             for p in ps:
                 p.join()
             dps = {}
             for counter, symbol in enumerate(args[0]):
-                dps[symbol] = DataProcessor.STATIC_DATA_CACHE[symbol].data
+                dps[symbol] = DataProcessorFactory.STATIC_DATA_CACHE[symbol].data
             if len(dps):
                 df = pd.concat(dps)
                 if isinstance(df.index[0][0], str) and isinstance(df.index[0][1], datetime):
-                    df.index.names = ['Symbol', 'Start_Period']
+                    df.ßindex.names = ['Symbol', 'Start_Period']
                     if 'Symbol' in df.columns:
                         df.drop(columns=['Symbol'], inplace=True)
                 else:
