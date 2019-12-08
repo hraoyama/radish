@@ -6,16 +6,16 @@ from paprika.data.data_channel import DataChannel
 
 
 def test_alpha():
-    symbols = DataChannel.check_register(["\w*.\w*.Trade"], False)
-    start = datetime(2010, 6, 1, 8, 15, 0)
-    end = datetime(2019, 6, 1, 8, 15, 0)
-    time_filter = TimeFreqFilter(TimePeriod.HOUR, 1)
-    dp = DataProcessor(symbols[0:2]).index(start, end)
-    dp.ohlcv(time_filter, inplace=True)
+    # symbols = DataChannel.check_register(["\w*.\w*.Trade"], False)
+    # start = datetime(2010, 6, 1, 8, 15, 0)
+    # end = datetime(2019, 6, 1, 8, 15, 0)
+    # time_filter = TimeFreqFilter(TimePeriod.HOUR, 1)
+    # dp = DataProcessor(symbols[0:2]).index(start, end)
+    # dp.ohlcv(time_filter, inplace=True)
 
-    symbols2 = DataChannel.check_register(['\w*.\w*.EOD'], False)
+    symbols2 = DataChannel.check_register(['SP500.\w*.EOD'], False)
     time_filter2 = TimeFreqFilter(TimePeriod.WEEK, 1)
-    dp2 = DataProcessor(symbols2[0:2])
+    dp2 = DataProcessor(symbols2[0:20])
     dp2.ohlcv(time_filter2, inplace=True)
 
     alpha = Alpha(dp2)
@@ -29,3 +29,5 @@ def test_alpha():
 
     alpha.add_alpha(alpha_5, 3)
     print(alpha.list_alpha())
+
+    alpha.analyze(symbols2[0])

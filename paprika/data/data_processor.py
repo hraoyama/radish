@@ -12,6 +12,7 @@ import functools
 from datetime import datetime
 import numpy as np
 import multiprocessing
+from typing import Optional
 from absl import logging
 
 
@@ -156,12 +157,22 @@ class DataProcessor(object):
                 df_ohlcv = self.ohlcv_from_ohlcv(time_freq)
             else:
                 raise ValueError('There is no Price or Volume in data of DataProcessor.')
+            df_ohlcv = self.add_return(df_ohlcv)
             if inplace:
                 self._data = df_ohlcv
             else:
                 return DataProcessor(df_ohlcv)
         else:
             raise ValueError('There is no data in DataProcessor.')
+
+    def add_return(self,
+                   df: pd.DataFrame,
+                   key: Optional[str] = 'CLOSE') -> pd.DataFrame:
+        if df.shape[0] > 0 and key in df.columns:
+            df['RETURN'] = df[key].unstack('Symbol').pct_change().stack('Symbol')
+            return df
+        else:
+            raise KeyError(f'No data or Close columns.')
 
     def ohlcv_from_price(self, time_freq):
         df_ohlcv = self._data["PRICE"].unstack('Symbol').resample(time_freq).ohlc().stack('Symbol')
@@ -181,7 +192,7 @@ class DataProcessor(object):
         df_ohlcv['LOW'] = self._data['LOW'].unstack('Symbol').resample(time_freq).min().stack('Symbol')
         df_ohlcv['VOLUME'] = self._data['VOLUME'].unstack('Symbol').resample(time_freq).sum().stack('Symbol')
         df_ohlcv['VWAP'] = self._data.unstack('Symbol').resample(time_freq).apply(
-                    lambda x: (x.CLOSE * x.VOLUME).sum() / x.VOLUME.sum()).stack('Symbol')
+            lambda x: (x.CLOSE * x.VOLUME).sum() / x.VOLUME.sum()).stack('Symbol')
         df_ohlcv['ADV'] = self._data['CLOSE'].unstack('Symbol').resample(time_freq).mean().stack('Symbol')
 
         return df_ohlcv
@@ -273,5 +284,12 @@ class DataProcessor(object):
     def adv(self, period: str):
         if 'ADV' in self._data.columns:
             return self._data['ADV'].unstack('Symbol')
+        else:
+            return None
+
+    @property
+    def ret(self):
+        if 'RETURN' in self._data.columns:
+            return self._data['RETURN'].unstack('Symbol')
         else:
             return None
