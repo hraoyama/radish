@@ -1,4 +1,4 @@
-import utils
+from paprika.utils import utils
 import pandas as pd
 import numpy as np
 import seaborn as sn

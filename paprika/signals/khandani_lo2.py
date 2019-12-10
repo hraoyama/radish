@@ -2,7 +2,7 @@
 
 import numpy as np
 import pandas as pd
-import utils
+from paprika.utils import utils
 import os
 import matplotlib.pyplot as plt
 

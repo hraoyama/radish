@@ -7,9 +7,11 @@ from datetime import datetime
 from math import ceil, floor
 from typing import Any, Type
 from scipy.stats import pearsonr
+from paprika.signals.genhurst import genhurst
 
 import numpy as np
 import pandas as pd
+import statsmodels.tsa.vector_ar.vecm as vm
 import matplotlib.pyplot as plt
 import seaborn as sns
 sns.set()
@@ -225,6 +227,7 @@ def simple_transaction_costs(positions, cost):
     """
     return np.nansum(np.abs(positions - array_shift(positions, 1)), axis=1) * cost
 
+
 def cadf_test(y, x, **kwargs):
     """
     Performs Engle-Granger cointegration test
@@ -289,16 +292,6 @@ def adf_test(z, **kwargs):
     return results
 
 
-def hurst_exp(z):
-    """
-    Hurst exponent computation
-    :param z:
-    :return:
-    """
-    hurst_val, p_value = genhurst(np.log(z))
-    return hurst_val, p_value
-
-
 def kf_simple(obs, obs_model):
     """
     Simple Kalman filter implementation.
@@ -361,5 +354,15 @@ def stats_print(time_idx, returns, rotation=0):
     max_dd, max_dd_dur = drawdown_calculator(returns.values)
 
     print('APR={:.2f} and Sharpe={:.2f}'.format(np.prod(1 + returns) ** (252 / len(returns)) - 1, sharpe(returns, 252)))
-    print('Max DD=%f Max DDD in days=%i' % (max_dd, max_dd_dur))
+    print('Maximum Drawdown={:.2f} and Maximum Drawdown Duration={:.2f}'.format(max_dd, max_dd_dur))
     return
+
+
+def hurst_exp(z):
+    """
+    Hurst exponent computation
+    :param z:
+    :return:
+    """
+    hurst_val, p_value = genhurst(np.log(z))
+    return hurst_val, p_value

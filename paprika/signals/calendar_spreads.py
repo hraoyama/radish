@@ -1,10 +1,10 @@
 # Example 5.4: Mean Reversion Trading of Calendar Spreads
+from paprika.utils import utils
+from sklearn.linear_model import LinearRegression
+
 import numpy as np
 import pandas as pd
 import os
-import utils
-from sklearn.linear_model import LinearRegression
-import statsmodels.api as sm
 import matplotlib.pyplot as plt
 
 

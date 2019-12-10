@@ -1,9 +1,9 @@
-import numpy as np
 from typing import List, Tuple
-
 from paprika.data.data_type import DataType
 from paprika.data.feed_subscriber import FeedSubscriber
 from paprika.data.feed_filter import *
+
+import numpy as np
 
 
 class TryOutSignal(FeedSubscriber):
