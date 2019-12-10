@@ -16,7 +16,7 @@ def test_data_channel_fetch():
     print(df.tail())
 
     symbol_pattern = 'SP500.A.*'
-    DataChannel.fetch_candle([symbol_pattern])
+    DataChannel.fetch_data([symbol_pattern], data_type=DataType.CANDLE)
     print(df.head())
     print(df.tail())
 
@@ -27,7 +27,7 @@ def test_data_channel_fetch():
     print(df.tail())
 
     symbol_pattern = 'ETF.E.*'
-    DataChannel.fetch_trade([symbol_pattern])
+    DataChannel.fetch_data([symbol_pattern], data_type=DataType.TRADES)
     print(df.head())
     print(df.tail())
 
@@ -38,7 +38,7 @@ def test_data_channel_fetch():
     print(df.tail())
 
     symbol_pattern = 'ETF.E.*'
-    DataChannel.fetch_orderbook([symbol_pattern])
+    DataChannel.fetch_data([symbol_pattern], data_type=DataType.ORDERBOOK)
     print(df.head())
     print(df.tail())
 
@@ -48,8 +48,10 @@ def test_data_channel_fetch():
     DataChannel.fetch_from_mongodb(symbol_with_type)
     DataChannel.fetch([symbol_with_type])
     symbol = 'SP500.COTY'
-    df1 = DataChannel.fetch_candle([symbol], frequency='1D')
-    df = DataChannel.fetch_candle_at_timestamp([symbol], df1.index[-10][1])
+    df1 = DataChannel.fetch_data([symbol], frequency='1D', data_type=DataType.CANDLE)
+    # df = DataChannel.fetch_candle_at_timestamp([symbol], df1.index[-10][1])
+    df2 = DataChannel.fetch_data_at_timestamp([symbol], df1.index[-10][1], data_type=DataType.CANDLE)
+    # assert all(df2 == df)
     df = DataChannel.fetch_price_at_timestamp([symbol], df1.index[-10][1])
     print(df)
 
@@ -60,8 +62,10 @@ def test_data_channel_fetch():
     DataChannel.fetch_from_mongodb(symbol_with_type)
     DataChannel.fetch([symbol_with_type])
     symbol = symbol_with_type.replace('.Trade', '')
-    df1 = DataChannel.fetch_trade([symbol])
-    df = DataChannel.fetch_trade_at_timestamp([symbol], df1.index[-10][1])
+    df1 = DataChannel.fetch_data([symbol], data_type=DataType.TRADES)
+    # df = DataChannel.fetch_trade_at_timestamp([symbol], df1.index[-10][1])
+    df2 = DataChannel.fetch_data_at_timestamp([symbol], df1.index[-10][1], data_type=DataType.TRADES)
+    # assert all(df2 == df)
     df = DataChannel.fetch_price_at_timestamp([symbol], df1.index[-10][1])
 
     print(df)
@@ -73,8 +77,10 @@ def test_data_channel_fetch():
     DataChannel.fetch_from_mongodb(symbol_with_type)
     DataChannel.fetch([symbol_with_type])
     symbol = symbol_with_type.replace('.OrderBook', '')
-    df1 = DataChannel.fetch_orderbook([symbol])
-    df2 = DataChannel.fetch_orderbook_at_timestamp([symbol], df1.index[-10][1])
+    df1 = DataChannel.fetch_data([symbol], data_type=DataType.ORDERBOOK)
+    # df2 = DataChannel.fetch_orderbook_at_timestamp([symbol], df1.index[-10][1])
+    df3 = DataChannel.fetch_data_at_timestamp([symbol], df1.index[-10][1], data_type=DataType.ORDERBOOK)
+    # assert all(df2 == df3)
     df = DataChannel.fetch_price_at_timestamp([symbol], df1.index[10][1])
 
     print(df)
