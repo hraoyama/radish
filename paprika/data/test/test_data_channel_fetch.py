@@ -10,6 +10,38 @@ import time
 def test_data_channel_fetch():
     DataChannel.clear_all_feeds()
 
+    symbol_pattern = 'SP500.A.*.Candle'
+    df = DataChannel.fetch([symbol_pattern])
+    print(df.head())
+    print(df.tail())
+
+    symbol_pattern = 'SP500.A.*'
+    DataChannel.fetch_candle([symbol_pattern])
+    print(df.head())
+    print(df.tail())
+
+    symbol_pattern = 'ETF.XS.*.Trade'
+    symbols = DataChannel.check_register([symbol_pattern])
+    df = DataChannel.fetch([symbol_pattern])
+    print(df.head())
+    print(df.tail())
+
+    symbol_pattern = 'ETF.E.*'
+    DataChannel.fetch_trade([symbol_pattern])
+    print(df.head())
+    print(df.tail())
+
+    symbol_pattern = 'EUX.FB.*.OrderBook'
+    symbols = DataChannel.check_register([symbol_pattern])
+    df = DataChannel.fetch([symbol_pattern])
+    print(df.head())
+    print(df.tail())
+
+    symbol_pattern = 'ETF.E.*'
+    DataChannel.fetch_orderbook([symbol_pattern])
+    print(df.head())
+    print(df.tail())
+
     symbol_with_type = 'SP500.COTY.1D.Candle'
     DataChannel.chunk_range(symbol_with_type)
     DataChannel.get_redis_key(symbol_with_type)
@@ -21,8 +53,8 @@ def test_data_channel_fetch():
     df = DataChannel.fetch_price_at_timestamp([symbol], df1.index[-10][1])
     print(df)
 
-    trade_symbols = DataChannel.check_register([f'.*Trade'], feeds_db=False)
-    symbol_with_type = trade_symbols[0]
+    trade_symbols = DataChannel.check_register([f'.*Trade'])
+    symbol_with_type = trade_symbols['mdb'][0]
     DataChannel.chunk_range(symbol_with_type)
     DataChannel.get_redis_key(symbol_with_type)
     DataChannel.fetch_from_mongodb(symbol_with_type)
@@ -34,8 +66,8 @@ def test_data_channel_fetch():
 
     print(df)
 
-    orderbook_symbols = DataChannel.check_register([f'.*OrderBook'], feeds_db=False)
-    symbol_with_type = orderbook_symbols[1]
+    orderbook_symbols = DataChannel.check_register([f'.*OrderBook'])
+    symbol_with_type = orderbook_symbols['mdb'][1]
     DataChannel.chunk_range(symbol_with_type)
     DataChannel.get_redis_key(symbol_with_type)
     DataChannel.fetch_from_mongodb(symbol_with_type)
@@ -94,7 +126,6 @@ def test_data_channel_fetch():
     # p = DataChannel.fetch_price_at_timestamp(symbols[0:1], df.index[10][1])
     # print(p)
 
-    trade_symbols = DataChannel.check_register([f'.*Candle'], feeds_db=False)
 
     # s = time.time()
     # df = DataChannel.fetch_from_mongodb(trade_symbols[0])

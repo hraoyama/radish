@@ -31,11 +31,11 @@ class DataChannel:
     ORDERBOOK_TIME_SPAN_UNIT = 'S'
 
     @staticmethod
-    def library(arctic_source_name: str = PERMANENT_ARCTIC_SOURCE_NAME,
+    def library(arctic_source: str = PERMANENT_ARCTIC_SOURCE_NAME,
                 arctic_host: str = DEFAULT_ARCTIC_HOST):
         store = Arctic(arctic_host)
-        assert arctic_source_name in store.list_libraries()
-        return store[arctic_source_name]
+        assert arctic_source in store.list_libraries()
+        return store[arctic_source]
 
     @staticmethod
     def name_to_data_type(name: str, data_type: DataType):
@@ -174,14 +174,17 @@ class DataChannel:
         return return_data
 
     @staticmethod
-    def check_register(part_of_symbol_list, feeds_db=True):
-        # pattern_list = [re.compile(".*" + x.upper().strip() + ".*") for x in part_of_symbol_list]
-        # pattern_list = [re.compile(".*" + x.strip() + ".*") for x in part_of_symbol_list]
+    def check_register(part_of_symbol_list: List[str],
+                       arctic_sources: Tuple[str] = ALL_ARCTIC_SOURCE,
+                       arctic_host: str = DEFAULT_ARCTIC_HOST):
         pattern_list = [re.compile(x) for x in part_of_symbol_list]
-        sourcedb_name = DataChannel.DEFAULT_ARCTIC_SOURCE_NAME if feeds_db else DataChannel.PERMANENT_ARCTIC_SOURCE_NAME
-        return [symbol_match
-                for symbol_match in DataChannel.table_names(arctic_source_name=sourcedb_name)
-                for plist in pattern_list if plist.match(symbol_match)]
+        symbol_matches = {}
+        for arctic_source in arctic_sources:
+            library = DataChannel.library(arctic_source, arctic_host)
+            symbol_matches[arctic_source] = [symbol_match
+                                             for symbol_match in library.list_symbols()
+                                             for plist in pattern_list if plist.match(symbol_match)]
+        return symbol_matches
 
     @staticmethod
     def fetch_price_at_timestamp(symbols: List[str],
@@ -270,7 +273,6 @@ class DataChannel:
             return df_timestamp
         else:
             return None
-
 
     @staticmethod
     def fetch_orderbook(symbols: List[str],
@@ -362,33 +364,37 @@ class DataChannel:
         if end is int:
             end = millis_to_datetime(end)
 
+        symbols_in_db = DataChannel.check_register(symbols,
+                                                   arctic_sources,
+                                                   arctic_host)
         dfs = {}
-        for symbol in symbols:
-            redis_key = DataChannel.get_redis_key(symbol,
-                                                  start,
-                                                  end,
-                                                  fields,
-                                                  arctic_sources,
-                                                  arctic_host
-                                                  )
-            if redis_key is not None:
-                msg = DataChannel.redis.get(redis_key)
-                if msg:
-                    logging.debug(f'Load Redis cache for {redis_key}')
-                    dfs[symbol] = pd.read_msgpack(msg)
-                else:
-                    logging.debug(f'Cache not existent for {redis_key}. '
-                                  f'Read from mongodb library {DataChannel.PERMANENT_ARCTIC_SOURCE_NAME}.')
-                    df = DataChannel.fetch_from_mongodb(symbol,
-                                                        start,
-                                                        end,
-                                                        fields,
-                                                        arctic_sources,
-                                                        arctic_host)
+        for arctic_source in arctic_sources:
+            for symbol in symbols_in_db[arctic_source]:
+                redis_key = DataChannel.get_redis_key(symbol,
+                                                      start,
+                                                      end,
+                                                      fields,
+                                                      arctic_sources,
+                                                      arctic_host
+                                                      )
+                if redis_key is not None:
+                    msg = DataChannel.redis.get(redis_key)
+                    if msg:
+                        logging.debug(f'Load Redis cache for {redis_key}')
+                        dfs[symbol] = pd.read_msgpack(msg)
+                    else:
+                        logging.debug(f'Cache not existent for {redis_key}. '
+                                      f'Read from mongodb library {DataChannel.PERMANENT_ARCTIC_SOURCE_NAME}.')
+                        df = DataChannel.fetch_from_mongodb(symbol,
+                                                            start,
+                                                            end,
+                                                            fields,
+                                                            arctic_sources,
+                                                            arctic_host)
 
-                    if df is not None:
-                        dfs[symbol] = df
-                        DataChannel.redis.set(redis_key, df.to_msgpack(compress='blosc'))
+                        if df is not None:
+                            dfs[symbol] = df
+                            DataChannel.redis.set(redis_key, df.to_msgpack(compress='blosc'))
         if len(dfs):
             df = pd.concat(dfs)
             df.index.names = ['Symbol', DataChannel.DATA_INDEX]
@@ -443,7 +449,10 @@ class DataChannel:
         if chunk_range is not None:
             db_start = pd.to_datetime("".join(map(chr, next(chunk_range)[0])))
             tmp_chunk_range = deque(chunk_range, maxlen=1)
-            db_end = pd.to_datetime("".join(map(chr, tmp_chunk_range.pop()[1])))
+            try:
+                db_end = pd.to_datetime("".join(map(chr, tmp_chunk_range.pop()[1])))
+            except IndexError:
+                db_end = db_start
             if end is None:
                 end = db_end
             else:
@@ -459,5 +468,14 @@ class DataChannel:
                         ".".join(map(str, fields))
 
             return redis_key
+        else:
+            return None
+
+    @staticmethod
+    def get_redis_table(self, redis_key: str):
+        msg = DataChannel.redis.get(redis_key)
+        if msg:
+            logging.debug(f'Load Redis cache for {redis_key}')
+            return pd.read_msgpack(msg)
         else:
             return None
