@@ -1,23 +1,41 @@
 import pandas as pd
 import logging
+from arctic import exceptions, Arctic, CHUNK_STORE
+from arctic.date import DateRange
 
-from arctic import Arctic
-from arctic import CHUNK_STORE
 from datetime import datetime, timedelta
 import redis
+import re
+from typing import List, Union, Optional, Tuple
+from collections import deque
 
 from paprika.data.data_type import DataType
-import re
+from paprika.data.constants import OrderBookColumnName, CandleColumnName, TradeColumnName
+from paprika.utils.time import millis_to_datetime
 
 
 class DataChannel:
-    # this class deals with temporary data feeds
-
     redis = redis.Redis('localhost')
-    DEFAULT_ARCTIC_SOURCE_NAME = 'feeds'
     DEFAULT_ARCTIC_HOST = 'localhost'
-
     PERMANENT_ARCTIC_SOURCE_NAME = 'mdb'
+    DEFAULT_ARCTIC_SOURCE_NAME = 'feeds'
+    ALL_ARCTIC_SOURCE = (DEFAULT_ARCTIC_SOURCE_NAME,
+                         PERMANENT_ARCTIC_SOURCE_NAME
+                         )
+
+    DATETIME_FORMAT = "%Y%m%d%H%M%S"
+    DATE_FORMAT = "%Y%m%d"
+    DATA_INDEX = 'Date'
+
+    TRADE_TIME_SPAN_UNIT = 'H'
+    ORDERBOOK_TIME_SPAN_UNIT = 'S'
+
+    @staticmethod
+    def library(arctic_source_name: str = PERMANENT_ARCTIC_SOURCE_NAME,
+                arctic_host: str = DEFAULT_ARCTIC_HOST):
+        store = Arctic(arctic_host)
+        assert arctic_source_name in store.list_libraries()
+        return store[arctic_source_name]
 
     @staticmethod
     def name_to_data_type(name: str, data_type: DataType):
@@ -164,3 +182,282 @@ class DataChannel:
         return [symbol_match
                 for symbol_match in DataChannel.table_names(arctic_source_name=sourcedb_name)
                 for plist in pattern_list if plist.match(symbol_match)]
+
+    @staticmethod
+    def fetch_price_at_timestamp(symbols: List[str],
+                                 timestamp: Optional[Union[int, datetime]],
+                                 arctic_sources: Tuple[str] = (PERMANENT_ARCTIC_SOURCE_NAME,),
+                                 arctic_host: str = DEFAULT_ARCTIC_HOST
+                                 ):
+        df = DataChannel.fetch_orderbook_at_timestamp(symbols,
+                                                      timestamp,
+                                                      fields=[OrderBookColumnName.Bid_Px_Lev_0,
+                                                              OrderBookColumnName.Ask_Px_Lev_0],
+                                                      arctic_sources=arctic_sources,
+                                                      arctic_host=arctic_host)
+        if df is not None:
+            bid1 = df[OrderBookColumnName.Bid_Px_Lev_0]
+            ask1 = df[OrderBookColumnName.Ask_Px_Lev_0]
+            return (bid1 + ask1) / 2.0
+        else:
+            df = DataChannel.fetch_trade_at_timestamp(symbols,
+                                                      timestamp,
+                                                      fields=[TradeColumnName.Price],
+                                                      arctic_sources=arctic_sources,
+                                                      arctic_host=arctic_host
+                                                      )
+            if df is not None:
+                return df[TradeColumnName.Price]
+            else:
+                df = DataChannel.fetch_candle_at_timestamp(symbols,
+                                                           timestamp,
+                                                           fields=[CandleColumnName.Close],
+                                                           arctic_sources=arctic_sources,
+                                                           arctic_host=arctic_host
+                                                           )
+                return df[CandleColumnName.Close]
+
+    @staticmethod
+    def fetch_orderbook_at_timestamp(symbols: List[str],
+                                     timestamp: Union[int, datetime],
+                                     fields: Optional[List[str]] = [],
+                                     time_span: Optional[int] = 15,
+                                     arctic_sources: Tuple[str] = (PERMANENT_ARCTIC_SOURCE_NAME,),
+                                     arctic_host: str = DEFAULT_ARCTIC_HOST
+                                     ):
+        if timestamp is int:
+            timestamp = millis_to_datetime(timestamp)
+        start = timestamp - pd.to_timedelta(f'{time_span}{DataChannel.ORDERBOOK_TIME_SPAN_UNIT}')
+        end = timestamp
+        df = DataChannel.fetch_orderbook(symbols,
+                                         start,
+                                         end,
+                                         fields,
+                                         arctic_sources,
+                                         arctic_host
+                                         )
+
+        if df is not None:
+            nearest_index = df.index.get_level_values(DataChannel.DATA_INDEX).get_loc(timestamp, method='nearest')
+            df_timestamp = df.loc[df.index[nearest_index]]
+            return df_timestamp
+        else:
+            return None
+
+    @staticmethod
+    def fetch_trade_at_timestamp(symbols: List[str],
+                                 timestamp: Union[int, datetime],
+                                 fields: Optional[List[str]] = [],
+                                 time_span: Optional[int] = 24,
+                                 arctic_sources: Tuple[str] = (PERMANENT_ARCTIC_SOURCE_NAME,),
+                                 arctic_host: str = DEFAULT_ARCTIC_HOST
+                                 ):
+        if timestamp is int:
+            timestamp = millis_to_datetime(timestamp)
+        start = timestamp - pd.to_timedelta(f'{time_span}{DataChannel.TRADE_TIME_SPAN_UNIT}')
+        end = timestamp
+        df = DataChannel.fetch_trade(symbols,
+                                     start,
+                                     end,
+                                     fields,
+                                     arctic_sources,
+                                     arctic_host
+                                     )
+
+        if df is not None:
+            nearest_index = df.index.get_level_values(DataChannel.DATA_INDEX).get_loc(timestamp, method='nearest')
+            df_timestamp = df.loc[df.index[nearest_index]]
+            return df_timestamp
+        else:
+            return None
+
+
+    @staticmethod
+    def fetch_orderbook(symbols: List[str],
+                        start: Optional[Union[int, datetime]] = None,
+                        end: Optional[Union[int, datetime]] = None,
+                        fields: Optional[List[str]] = [],
+                        arctic_sources: Tuple[str] = (PERMANENT_ARCTIC_SOURCE_NAME,),
+                        arctic_host: str = DEFAULT_ARCTIC_HOST
+                        ):
+        symbols_in_db = [f'{symbol}.{DataType.ORDERBOOK}' for symbol in symbols]
+        return DataChannel.fetch(symbols_in_db,
+                                 start,
+                                 end,
+                                 fields,
+                                 arctic_sources,
+                                 arctic_host)
+
+    @staticmethod
+    def fetch_trade(symbols: List[str],
+                    start: Optional[Union[int, datetime]] = None,
+                    end: Optional[Union[int, datetime]] = None,
+                    fields: Optional[List[str]] = [],
+                    arctic_sources: Tuple[str] = (PERMANENT_ARCTIC_SOURCE_NAME,),
+                    arctic_host: str = DEFAULT_ARCTIC_HOST
+                    ):
+        symbols_in_db = [f'{symbol}.{DataType.TRADES}' for symbol in symbols]
+        return DataChannel.fetch(symbols_in_db,
+                                 start,
+                                 end,
+                                 fields,
+                                 arctic_sources,
+                                 arctic_host)
+
+    @staticmethod
+    def fetch_candle_at_timestamp(symbols: List[str],
+                                  timestamp: Union[int, datetime],
+                                  frequency: Optional[str] = '1D',
+                                  fields: Optional[List[str]] = [],
+                                  arctic_sources: Tuple[str] = (PERMANENT_ARCTIC_SOURCE_NAME,),
+                                  arctic_host: str = DEFAULT_ARCTIC_HOST
+                                  ):
+        if timestamp is int:
+            timestamp = millis_to_datetime(timestamp)
+        start = timestamp - pd.to_timedelta(frequency)
+        end = timestamp
+        df = DataChannel.fetch_candle(symbols,
+                                      frequency,
+                                      start,
+                                      end,
+                                      fields,
+                                      arctic_sources,
+                                      arctic_host
+                                      )
+
+        if df is not None:
+            nearest_index = df.index.get_level_values(DataChannel.DATA_INDEX).get_loc(timestamp, method='nearest')
+            return df.loc[df.index[nearest_index]]
+        else:
+            return None
+
+    @staticmethod
+    def fetch_candle(symbols: List[str],
+                     frequency: Optional[str] = '1D',
+                     start: Optional[Union[int, datetime]] = None,
+                     end: Optional[Union[int, datetime]] = None,
+                     fields: Optional[List[str]] = [],
+                     arctic_sources: Tuple[str] = (PERMANENT_ARCTIC_SOURCE_NAME,),
+                     arctic_host: str = DEFAULT_ARCTIC_HOST
+                     ):
+        symbols_in_db = [f'{symbol}.{frequency}.{DataType.CANDLE}' for symbol in symbols]
+        return DataChannel.fetch(symbols_in_db,
+                                 start,
+                                 end,
+                                 fields,
+                                 arctic_sources,
+                                 arctic_host)
+
+    @staticmethod
+    def fetch(symbols: List[str],
+              start: Optional[Union[int, datetime]] = None,
+              end: Optional[Union[int, datetime]] = None,
+              fields: Optional[List[str]] = [],
+              arctic_sources: Tuple[str] = (PERMANENT_ARCTIC_SOURCE_NAME,),
+              arctic_host: str = DEFAULT_ARCTIC_HOST
+              ):
+
+        if start is int:
+            start = millis_to_datetime(start)
+        if end is int:
+            end = millis_to_datetime(end)
+
+        dfs = {}
+        for symbol in symbols:
+            redis_key = DataChannel.get_redis_key(symbol,
+                                                  start,
+                                                  end,
+                                                  fields,
+                                                  arctic_sources,
+                                                  arctic_host
+                                                  )
+            if redis_key is not None:
+                msg = DataChannel.redis.get(redis_key)
+                if msg:
+                    logging.debug(f'Load Redis cache for {redis_key}')
+                    dfs[symbol] = pd.read_msgpack(msg)
+                else:
+                    logging.debug(f'Cache not existent for {redis_key}. '
+                                  f'Read from mongodb library {DataChannel.PERMANENT_ARCTIC_SOURCE_NAME}.')
+                    df = DataChannel.fetch_from_mongodb(symbol,
+                                                        start,
+                                                        end,
+                                                        fields,
+                                                        arctic_sources,
+                                                        arctic_host)
+
+                    if df is not None:
+                        dfs[symbol] = df
+                        DataChannel.redis.set(redis_key, df.to_msgpack(compress='blosc'))
+        if len(dfs):
+            df = pd.concat(dfs)
+            df.index.names = ['Symbol', DataChannel.DATA_INDEX]
+            # return df.groupby([DataChannel.DATA_INDEX, 'Symbol']).first()
+            return df
+        else:
+            return None
+
+    @staticmethod
+    def fetch_from_mongodb(symbol: str,
+                           start: Optional[Union[int, datetime]] = None,
+                           end: Optional[Union[int, datetime]] = None,
+                           fields: Optional[List[str]] = [],
+                           arctic_sources: Tuple[str] = ALL_ARCTIC_SOURCE,
+                           arctic_host: str = DEFAULT_ARCTIC_HOST):
+
+        for arctic_source in arctic_sources:
+            library = DataChannel.library(arctic_source, arctic_host)
+            try:
+                df = library.read(symbol=symbol, chunk_range=DateRange(start, end), columns=fields)
+                df = df.loc[~df.index.duplicated(keep='first')]
+                return df
+            except exceptions.NoDataFoundException as ndf:
+                logging.error(str(ndf))
+
+        return None
+
+    @staticmethod
+    def chunk_range(symbol: str,
+                    arctic_sources: Tuple[str] = ALL_ARCTIC_SOURCE,
+                    arctic_host: str = DEFAULT_ARCTIC_HOST):
+        for arctic_source in arctic_sources:
+            library = DataChannel.library(arctic_source, arctic_host)
+            try:
+                result = library.get_chunk_ranges(symbol)
+                next(result)
+                return library.get_chunk_ranges(symbol)
+            except exceptions.NoDataFoundException as ndf:
+                logging.error(str(ndf))
+
+        return None
+
+    @staticmethod
+    def get_redis_key(symbol,
+                      start: Optional[Union[int, datetime]] = None,
+                      end: Optional[Union[int, datetime]] = None,
+                      fields: Optional[List[str]] = [],
+                      arctic_sources: Tuple[str] = ALL_ARCTIC_SOURCE,
+                      arctic_host: str = DEFAULT_ARCTIC_HOST
+                      ):
+        chunk_range = DataChannel.chunk_range(symbol, arctic_sources, arctic_host)
+        if chunk_range is not None:
+            db_start = pd.to_datetime("".join(map(chr, next(chunk_range)[0])))
+            tmp_chunk_range = deque(chunk_range, maxlen=1)
+            db_end = pd.to_datetime("".join(map(chr, tmp_chunk_range.pop()[1])))
+            if end is None:
+                end = db_end
+            else:
+                end = min(end, db_end)
+            if start is None:
+                start = db_start
+            else:
+                start = max(start, db_start)
+
+            redis_key = symbol + \
+                        f".{start.strftime(DataChannel.DATETIME_FORMAT)}." \
+                        f"{end.strftime(DataChannel.DATETIME_FORMAT)}." + \
+                        ".".join(map(str, fields))
+
+            return redis_key
+        else:
+            return None

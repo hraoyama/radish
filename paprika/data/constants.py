@@ -42,6 +42,16 @@ class TradeColumnName(object):
     Qty = 'Qty'
     Volume = 'Volume'
 
+
+class CandleColumnName(object):
+    Close = 'Close'
+    Open = 'Open'
+    High = 'High'
+    Low = 'Low'
+    Volume = 'Volume'
+    Return = 'Return'
+
+
 class OrderBookColumnName(object):
     
     Bid_Px_Lev_0 = 'Bid_Px_Lev_0'
