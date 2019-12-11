@@ -23,6 +23,6 @@ setup(name='radish',
           'numpy',
           'matplotlib',
           'seaborn',
-          'scikit-learn', 'scipy', 'statsmodels'
+          'scikit-learn', 'scipy', 'statsmodels', 'haidata'
       ],
       zip_safe=True)
