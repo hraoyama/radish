@@ -125,15 +125,14 @@ class DataChannel:
                  string_format=True,
                  cascade=True):
         
-        if string_format:
-            table_name = table_name.upper().strip()
-        
         msg = DataChannel.redis.get(table_name) if use_redis else None
         if msg:
             logging.debug(f'Load Redis cache for {table_name}')
             # return pa.default_serialization_context().deserialize(msg)
             return pd.read_msgpack(msg)
         else:
+            if string_format:
+                table_name = table_name.upper().strip()
             logging.debug(f'Load Arctic cache for {table_name}')
             arctic = Arctic(arctic_host)
             assert arctic_source_name in arctic.list_libraries()

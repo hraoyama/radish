@@ -14,7 +14,7 @@ def main():
     stocks['Index'] = pd.to_datetime(stocks.Index)
     stocks.set_index('Index', inplace=True)
 
-    symbols = set([symbol.split('.')[0] for symbol in stocks.columns])
+    symbols = set([ ".".join(symbol.split('.')[:-1]) for symbol in stocks.columns])
     symbols_ohlcv = [[f'{symbol}.Open',
                       f'{symbol}.High',
                       f'{symbol}.Low',
@@ -23,7 +23,7 @@ def main():
                      for symbol in symbols]
     for symbol_ohlcv in symbols_ohlcv:
         symbol = symbol_ohlcv[0].split('.')[0]
-        df = stocks[symbol_ohlcv]
+        df = stocks[symbol_ohlcv][:]
         df.loc[:, 'Symbol'] = symbol
         df.rename(columns={f'{symbol}.Open': 'Open',
                            f'{symbol}.High': 'High',

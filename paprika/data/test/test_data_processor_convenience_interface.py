@@ -11,7 +11,6 @@ import numpy as np
 
 
 def test_data_processor_convenience_interface():
-    # column_name = "Price", return_type = "LOG_RETURN", new_column_name = None, overwrite = False
     
     data = DataProcessor("EUX.FDAX201709.Trade").time_freq(TimePeriod.MINUTE, 15). \
         extract_returns("Price").index('2017-09-13 23:18:47.488475', '2017-09-15 00:18:44.655347').data
@@ -22,10 +21,10 @@ def test_data_processor_convenience_interface():
     pp(z2.PRICE['2017-09-13 23:55':'2017-09-14 11:00'])
     
     z3 = DataProcessor("I_WILL_ACCESS_THIS_LATER").between_time('11:30', '14:00'). \
-        shift_to_new_column("L1_LOG_RET", "Price", 1).data
+        shift_to_new_column("L1_LOG_RET", "PRICE", 1).data
     
     pp(z3.L1_LOG_RET['2017-09-13 11:00':'2017-09-14 14:00'])
-    pp(z3.Price['2017-09-13 11:00':'2017-09-14 14:00'])
+    pp(z3.PRICE['2017-09-13 11:00':'2017-09-14 14:00'])
     
     data3 = DataProcessor("EUX.FDAX201709.Trade").between_time('15:59', '16:30'). \
         time_freq(TimePeriod.BUSINESS_DAY).positive_price().extract_returns("Price", "LOG_RETURN", "LogReturn_Px").data

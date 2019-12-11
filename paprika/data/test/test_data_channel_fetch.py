@@ -33,7 +33,7 @@ def test_data_channel_fetch():
                     arctic_host: Optional[str] = DEFAULT_ARCTIC_HOST
                     ):
     """
-
+    
     symbol_patterns = ['SP500.A.*']
     symbols = DataChannel.check_register(symbol_patterns)
     df = DataChannel.fetch(symbol_patterns, data_type=DataType.CANDLE, frequency='1D')
@@ -54,7 +54,7 @@ def test_data_channel_fetch():
     df3 = DataChannel.fetch_price(symbol_patterns, timestamp=df.index[-100][1])
     print(df3)
 
-    symbol_patterns = ['EUX.FB.*']
+    symbol_patterns = ['EUX.FBTS201712.*']
     symbols = DataChannel.check_register(symbol_patterns)
     df = DataChannel.fetch(symbol_patterns, data_type=DataType.ORDERBOOK)
     print(df.head())

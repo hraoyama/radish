@@ -26,5 +26,7 @@ def test_data_processor_on_new_data_type():
         (lambda x: x[np.abs(x["observation"]) < 2.0]).data
     pp(data4)
     
+    DataChannel.upload_to_redis(data4, table_name="MyRandomIdentifier")
+    
     t1 = DataChannel.download("MyRandomIdentifier", string_format=False)
     pp(t1.head(10))

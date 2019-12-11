@@ -9,7 +9,12 @@ from functools import partial
 
 
 def custom_function(df):
-    df[["L1_LOG_RET"]] = df[["Price"]].shift(1)
+    if "Price" in df.columns:
+        df[["L1_LOG_RET"]] = df[["Price"]].shift(1)
+    if "PRICE" in df.columns:
+        df[["L1_LOG_RET"]] = df[["PRICE"]].shift(1)
+    if "PX" in df.columns:
+        df[["L1_LOG_RET"]] = df[["PX"]].shift(1)
     return df
 
 
@@ -43,7 +48,7 @@ def test_data_processor():
         ("between_time", '11:30', '14:00') \
         (custom_function).data
     pp(z3.L1_LOG_RET['2017-09-13 11:00':'2017-09-14 14:00'])
-    pp(z3.Price['2017-09-13 11:00':'2017-09-14 14:00'])
+    pp(z3.PRICE['2017-09-13 11:00':'2017-09-14 14:00'])
     
     data3 = DataProcessor("EUX.FDAX201709.Trade") \
         ("between_time", '15:59', '16:30') \
