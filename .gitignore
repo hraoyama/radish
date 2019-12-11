@@ -110,3 +110,5 @@ venv.bak/
 .idea/misc.xml
 pivotaltracker
 pivotaltracker/*.*
+paprika/data/data_processor.py.orig
+paprika/data/data_channel.py.orig

@@ -6,7 +6,6 @@ from paprika.core.function_utils import \
     add_return_to_dict_or_pandas_col_decorator  # , add_return_to_pandas_indexed_col_decorator
 
 def test_get_return_series():
-    DataProcessor.MAKE_AVAILABLE_IN_FEEDS = False
     
     return_dict = dict()
     tickers = ['GLD', 'GDX']

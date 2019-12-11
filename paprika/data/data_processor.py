@@ -16,7 +16,6 @@ from typing import Optional
 
 
 class DataProcessor(object):
-    MAKE_AVAILABLE_IN_FEEDS = True
     
     @staticmethod
     def create_data_frame(*args, **kwargs):
@@ -25,65 +24,51 @@ class DataProcessor(object):
     def __init__(self, *args, **kwargs):
         if isinstance(args[0], pd.DataFrame):
             self._data = args[0]
-            # if DataProcessor.MAKE_AVAILABLE_IN_FEEDS:
-            #     new_table_name = kwargs.get("table_name", None)
-            #     new_table_name = args[1] if new_table_name is None and len(args) > 1 and isinstance(args[1],
-            #                                                                                         str) else new_table_name
-            #     if new_table_name is not None:
-            #         DataChannel.upload(self._data, new_table_name, arctic_source_name='feeds', string_format=False)
-        # elif args and isinstance(args[0], str):
-        #     is_available_in_feeds = args[0] in DataChannel.table_names()
-        #     if kwargs:
-        #         if "arctic_source_name" not in kwargs:
-        #             kwargs["arctic_source_name"] = 'mdb' if not is_available_in_feeds else 'feeds'
-        #         if "string_format" not in kwargs:
-        #             kwargs["string_format"] = False
-        #     else:
-        #         if is_available_in_feeds:
-        #             kwargs = dict({"arctic_source_name": 'feeds', "string_format": False})
-        #         else:
-        #             kwargs = dict({"arctic_source_name": 'mdb', "string_format": False})
-        #     dict_to_add_to = None
-        #     if "add_to_dict" in kwargs:
-        #         dict_to_add_to = kwargs["add_to_dict"]
-        #         del kwargs["add_to_dict"]
-        #     self._data = DataChannel.download(args[0], *args[1:], **kwargs)
-        #     if dict_to_add_to is not None:
-        #         dict_to_add_to[args[0]] = self._data
-        #     if DataProcessor.MAKE_AVAILABLE_IN_FEEDS and not is_available_in_feeds:
-        #         DataChannel.upload(self._data, args[0], arctic_source_name='feeds', string_format=False)
-        # elif args and isinstance(args[0], list):
+        elif args and isinstance(args[0], str):
+            is_available_in_feeds = args[0] in DataChannel.table_names()
+            if kwargs:
+                if "arctic_source_name" not in kwargs:
+                    kwargs["arctic_source_name"] = 'mdb' if not is_available_in_feeds else 'feeds'
+                if "string_format" not in kwargs:
+                    kwargs["string_format"] = False
+            else:
+                if is_available_in_feeds:
+                    kwargs = dict({"arctic_source_name": 'feeds', "string_format": False})
+                else:
+                    kwargs = dict({"arctic_source_name": 'mdb', "string_format": False})
+            dict_to_add_to = None
+            if "add_to_dict" in kwargs:
+                dict_to_add_to = kwargs["add_to_dict"]
+                del kwargs["add_to_dict"]
+            self._data = DataChannel.download(args[0], *args[1:], **kwargs)
+            if dict_to_add_to is not None:
+                dict_to_add_to[args[0]] = self._data
+        elif args and isinstance(args[0], list):
             p = Pool(processes=min(multiprocessing.cpu_count(), len(args[0])))
             data = p.map(DataProcessor.create_data_frame, [symbol for symbol in args[0]])
             p.close()
-        #     # for p in ps:
-        #     #     p.join()
+            dps = {}
+            for counter, symbol in enumerate(args[0]):
                 dps[symbol] = data[counter]
-        #     #     dps[symbol] = DataProcessorFactory.STATIC_DATA_CACHE[symbol].data
-        #     for symbol in args[0]:
-        #         logging.info(f'Load {symbol} data')
+            if len(dps):
+                df = pd.concat(dps)
+                if isinstance(df.index[0][0], str) and isinstance(df.index[0][1], datetime):
                     if ('Symbol' not in df.columns) and ('ISIN' not in df.columns):
                         df['Symbol'] = df.index[0][:]
                     df.index = df.index.droplevel(0)
-        #     if len(dps):
-        #         df = pd.concat(dps)
-                
+                else:
+                    raise TypeError(f'Index is {df.index[0]} is not (str, datetime)')
                 if 'Start_Period' in df.columns and 'Symbol' in df.columns:
                     self._data = df.groupby(['Start_Period', 'Symbol']).first()
                 else:
                     self._data = df
-        
-        #         self._data = df.groupby(['Start_Period', 'Symbol']).first()
-        #
-        # elif "table_name" in kwargs.keys():
-        #     is_available_in_feeds = kwargs["table_name"] in DataChannel.table_names()
-        #     if "arctic_source_name" not in kwargs:
-        #         kwargs["arctic_source_name"] = 'mdb' if not is_available_in_feeds else 'feeds'
-        #     if "string_format" not in kwargs:
-        #         kwargs["string_format"] = False
-        #     self._data = DataChannel.download(**kwargs)
-        #     if DataProcessor.MAKE_AVAILABLE_IN_FEEDS and not is_available_in_feeds:
-        #         DataChannel.upload(self._data, kwargs["table_name"], arctic_source_name='feeds', string_format=False)
+        elif "table_name" in kwargs.keys():
+            is_available_in_feeds = kwargs["table_name"] in DataChannel.table_names()
+            if "arctic_source_name" not in kwargs:
+                kwargs["arctic_source_name"] = 'mdb' if not is_available_in_feeds else 'feeds'
+            if "string_format" not in kwargs:
+                kwargs["string_format"] = False
+            self._data = DataChannel.download(**kwargs)
         else:
             raise ValueError(f'Unable to interpret DataProcessor arguments: {str(args)} and {str(kwargs)}')
         pass

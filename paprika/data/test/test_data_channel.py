@@ -9,15 +9,15 @@ import numpy as np
 def test_data_channel():
     DataChannel.clear_all_feeds()
     
-    DataChannel.check_register(["GOLD2", "USO"], feeds_db=False)
+    DataChannel.check_register(["GOLD2", "USO"])
     gld = DataChannel.download('GOLD2.OHLCVAC_PRICE', DataChannel.PERMANENT_ARCTIC_SOURCE_NAME, use_redis=False)
     gdx = DataChannel.download('USO.OHLCVAC_PRICE', DataChannel.PERMANENT_ARCTIC_SOURCE_NAME, use_redis=False)
     assert np.all(gld.index == gdx.index)
     
-    assert 'PEP.OHLCVAC_PRICE' in DataChannel.check_register([".*OHLC.*"], feeds_db=False)
-    assert 'EUX.FBTP201806.OrderBook' in DataChannel.check_register([".*FBTP.*"], feeds_db=False)
-    assert 'EUX.FBTP201706.Trade' in DataChannel.check_register([".*FBTP.*"], feeds_db=False)
-    assert 'MTA.IT0005322612.Trade' in DataChannel.check_register([".*MTA.*"], feeds_db=False)
+    assert 'PEP.OHLCVAC_PRICE' in DataChannel.check_register([".*OHLC.*"])['mdb']
+    assert 'EUX.FBTP201806.OrderBook' in DataChannel.check_register([".*FBTP.*"])['mdb']
+    assert 'EUX.FBTP201706.Trade' in DataChannel.check_register([".*FBTP.*"])['mdb']
+    assert 'MTA.IT0005322612.Trade' in DataChannel.check_register([".*MTA.*"])['mdb']
     
     assert 'MTA.IT0005322612.Trade' in DataChannel.table_names(DataChannel.PERMANENT_ARCTIC_SOURCE_NAME)
     # unless this name was run in this session...
@@ -31,16 +31,16 @@ def test_data_channel():
     ts1 = ts1.rename(columns={'Date': 'date'})
     ts1.set_index('date', inplace=True)
     
-    assert 'GOLD.TEMPORARY_TYPE' not in DataChannel.check_register([".*TEMPORARY_TYPE.*"], feeds_db=True)
-    assert 'GOLD.TEMPORARY_TYPE' not in DataChannel.check_register([".*TEMPORARY_TYPE.*"], feeds_db=False)
+    assert 'GOLD.TEMPORARY_TYPE' not in DataChannel.check_register([".*TEMPORARY_TYPE.*"], arctic_sources=['feeds'])['feeds']
+    assert 'GOLD.TEMPORARY_TYPE' not in DataChannel.check_register([".*TEMPORARY_TYPE.*"], arctic_sources=['mdb'])['mdb']
     assert DataChannel.redis.get('GOLD.TEMPORARY_TYPE') is None
     
     DataType.extend("TEMPORARY_TYPE")
     table_name = DataChannel.name_to_data_type("GOLD", DataType.TEMPORARY_TYPE)
     DataChannel.upload(ts1, table_name, put_in_redis=True)
     
-    assert 'GOLD.TEMPORARY_TYPE' in DataChannel.check_register([".*TEMPORARY_TYPE.*"], feeds_db=True)
-    assert 'GOLD.TEMPORARY_TYPE' not in DataChannel.check_register([".*TEMPORARY_TYPE.*"], feeds_db=False)
+    assert 'GOLD.TEMPORARY_TYPE' in DataChannel.check_register([".*TEMPORARY_TYPE.*"])['feeds']
+    assert 'GOLD.TEMPORARY_TYPE' not in DataChannel.check_register([".*TEMPORARY_TYPE.*"])['mdb']
     assert DataChannel.redis.get('GOLD.TEMPORARY_TYPE') is not None
     DataChannel.clear_redis(['GOLD'])
     assert DataChannel.redis.get('GOLD.TEMPORARY_TYPE') is None
@@ -50,12 +50,4 @@ def test_data_channel():
     DataChannel.clear_redis()
     assert DataChannel.redis.get('GOLD.TEMPORARY_TYPE') is None
     
-    # to_remove_list = DataChannel.check_register(['CAC.*EOD'], feeds_db=False)
-    # for to_remove in to_remove_list:
-    #     DataChannel.delete_table(to_remove, arctic_source_name=DataChannel.PERMANENT_ARCTIC_SOURCE_NAME)
-    
-    # DataChannel.upload_to_permanent()
-    # DataChannel.upload_to_redis()
-    # DataChannel.download()
-    # DataChannel.delete_table()
-    # DataChannel.clear_all_feeds()
+

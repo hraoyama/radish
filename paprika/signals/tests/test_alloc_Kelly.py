@@ -8,7 +8,6 @@ import numpy as np
 import pandas as pd
 
 def test_alloc_Kelly():
-    DataProcessor.MAKE_AVAILABLE_IN_FEEDS = False
 
     return_dict = dict()
     tckrs = ['GLD', 'GDX', 'IGE', 'KO', 'OIH', 'PEP', 'RKH', 'RTH', 'SPY']
