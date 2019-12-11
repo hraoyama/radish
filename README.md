@@ -12,6 +12,7 @@ Backtesting and research  platform
    * https://redis.io/
    * https://www.atlassian.com/git/tutorials/install-git
    * https://confluence.atlassian.com/get-started-with-sourcetree/install-sourcetree-847359094.html
+   * http://kdiff3.sourceforge.net/
 
    2) get a free github account
    3) get to know some github: https://www.youtube.com/watch?v=HVsySz-h9r4
