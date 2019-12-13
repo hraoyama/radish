@@ -16,7 +16,8 @@ from paprika.portfolio.order_manager import OrderManager
 from paprika.portfolio.optimization import PortfolioOptimizer
 from paprika.execution.order import Side, Order, MarketOrder, ExecutionResult, OrderType, LimitOrder
 from paprika.signals.signal_data import SignalData
-from paprika.data.fetcher import HistoricalDataFetcher
+# from paprika.data.fetcher import HistoricalDataFetcher
+from paprika.data.data_channel import DataChannel
 
 
 class PortfolioManager:
@@ -29,7 +30,7 @@ class PortfolioManager:
         self.optimizer = optimizer
         self.risk_policy = risk_policy
         self._portfolio = None
-        self.fetcher = HistoricalDataFetcher()
+        # self.fetcher = HistoricalDataFetcher()
 
     @property
     def portfolio(self) -> Portfolio:
@@ -80,8 +81,9 @@ class PortfolioManager:
 
     @staticmethod
     def merge_signals_timestamps(signals_data: Dict[str, SignalData]) -> pd.DataFrame:
-        dfs = [pd.Series(name, index=signal_data.get_indices()) for name, signal_data in signals_data.items()]
-        return pd.concat(dfs, axis=1)
+        dfs = [pd.Series(name, index=signal_data.get_frame('positions').index) for name, signal_data in
+               signals_data.items()]
+        return pd.concat(dfs, axis=1).sort_index()
 
     def executing_signals_at_one_timestamp(self,
                                            timestamp: datetime,
@@ -161,8 +163,14 @@ class PortfolioManager:
         symbols_not_in_signal = [symbol for symbol in portfolio_to_use.balance.keys() if
                                  symbol not in prices_signal.keys()
                                  and symbol != portfolio_to_use.base_currency]
-        prices_symbols_not_in_signal = Dist({symbol: self.fetcher.fetch_price_at_timestamp(symbol, timestamp)
-                                             for symbol in symbols_not_in_signal})
+        prices_symbols_not_in_signal = {}
+        for symbol in symbols_not_in_signal:
+            price = DataChannel.fetch_price([symbol], timestamp)
+            if price is not None:
+                prices_symbols_not_in_signal[symbol] = price.Price
+        prices_symbols_not_in_signal = Dist(prices_symbols_not_in_signal)
+        # prices_symbols_not_in_signal = Dist({symbol: DataChannel.fetch_price([symbol], timestamp).Price.values
+        #                                      for symbol in symbols_not_in_signal})
         return prices_symbols_not_in_signal + prices_signal
 
     def get_order_from_signal(self,
@@ -192,9 +200,9 @@ class PortfolioManager:
         else:
             side = Side.SELL
         if order_type == OrderType.MARKET:
-            return MarketOrder(symbol, amount, side, timestamp)
+            return MarketOrder(symbol, abs(amount), side, timestamp)
         else:
-            return LimitOrder(symbol, amount, side, timestamp)
+            return LimitOrder(symbol, abs(amount), side, timestamp)
 
     def update_order_from_signal(self,
                                  order: Order,
@@ -253,16 +261,25 @@ class PortfolioManager:
 
             orders = self.sort_orders(orders)
 
+            # for symbol, order in orders.items():
+            #     if self.is_enough_balance(order, portfolio_to_use):
+            #         logging.info(f'Send {order} to Order Manager for portfolio {portfolio_to_use.name}.')
+            #         portfolio_to_use, remaining_order = self.order_manager.accept_order(portfolio_to_use, order, src,
+            #                                                                             target)
+            #         if remaining_order:
+            #             self._remaining_orders[symbol] = remaining_order
+            #     else:
+            #         logging.info(f'Portfolio {portfolio_to_use.name} have {portfolio_to_use.balance}.'
+            #                      f'Can not support order to {order.side} {order.symbol} {order.amount}.')
             for symbol, order in orders.items():
-                if self.is_enough_balance(order, portfolio_to_use):
-                    logging.info(f'Send {order} to Order Manager for portfolio {portfolio_to_use.name}.')
-                    portfolio_to_use, remaining_order = self.order_manager.accept_order(portfolio_to_use, order, src,
-                                                                                        target)
-                    if remaining_order:
-                        self._remaining_orders[symbol] = remaining_order
-                else:
-                    logging.info(f'Portfolio {portfolio_to_use.name} have {portfolio_to_use.balance}.'
-                                 f'Can not support order to {order.side} {order.symbol} {order.amount}.')
+                portfolio_to_use, remaining_order = self.order_manager.accept_order(portfolio_to_use,
+                                                                                    order,
+                                                                                    src,
+                                                                                    target)
+                if remaining_order:
+                    self._remaining_orders[symbol] = remaining_order
+
+        return portfolio_to_use
 
     @staticmethod
     def sort_orders(orders: Dict[str, Order]) -> OrderedDict:
@@ -288,7 +305,7 @@ class PortfolioManager:
             if order.side == Side.SELL:
                 return True if portfolio_to_use.balance[order.symbol] >= order.amount else False
             if order.side == Side.BUY:
-                price = self.fetcher.fetch_price_at_timestamp(order.symbol, order.creation_time)
+                price = DataChannel.fetch_price([order.symbol], order.creation_time).Price
                 base_balance = portfolio_to_use.balance[portfolio_to_use.base_currency]
                 able_to_buy = int(base_balance / price)
                 return True if able_to_buy >= order.amount else False
