@@ -353,7 +353,7 @@ class DataChannel:
                 df = df.loc[~df.index.duplicated(keep='first')]
                 return df
             except exceptions.NoDataFoundException as ndf:
-                logging.error(str(ndf))
+                logging.error(f'{str(ndf)} for {start} to {end}')
 
         return None
 
@@ -368,7 +368,7 @@ class DataChannel:
                 next(result)
                 return library.get_chunk_ranges(symbol)
             except exceptions.NoDataFoundException as ndf:
-                logging.error(str(ndf))
+                logging.error(f'{str(ndf)}: {symbol}')
 
         return None
 
