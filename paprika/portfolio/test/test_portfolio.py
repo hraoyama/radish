@@ -7,11 +7,12 @@ from datetime import datetime
 
 
 def test_portfolio():
+
     base_currency = 'EUR'
     balance = {base_currency: 100, 'ETF.DE0002635299': 10}
     p1 = Portfolio("Total", base_currency, balance)
     timestamp = datetime(2019, 2, 6, 12, 30)
-    p1.portfolio_value(timestamp)
+    p1.portfolio_value_in_base_currency(timestamp)
     p2 = Portfolio("S1", base_currency, balance)
     p4 = Portfolio("S2", base_currency, balance)
     p3 = Portfolio("S1S1", base_currency, balance)
@@ -23,4 +24,4 @@ def test_portfolio():
     print(p1.list_sub_portfolio())
     print(p1)
     assert p1.get_sub_portfolio(p2.name) == p2
-    print(p1.portfolio_value(timestamp))
+    print(p1.portfolio_value_in_base_currency(timestamp))
