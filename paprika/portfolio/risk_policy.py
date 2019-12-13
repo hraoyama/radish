@@ -29,12 +29,14 @@ class RiskPolicy(ABC):
                          f'then allocate them again.')
             whole_portfolio = self.merge_sub_portfolios(whole_portfolio)
         num = len(sub_portfolio_names)
-        sub_balance = whole_portfolio.balance / num
+        sub_balance = whole_portfolio.total_balance / num
         base_currency = whole_portfolio.base_currency
+        name = whole_portfolio.name
+        new_whole_portfolio = Portfolio(name=name, base_currency=base_currency, balance={})
         for portfolio_name in sub_portfolio_names:
             portfolio = Portfolio(portfolio_name, base_currency, sub_balance)
-            whole_portfolio.add_sub_portfolio(portfolio)
-        return whole_portfolio
+            new_whole_portfolio.add_sub_portfolio(portfolio)
+        return new_whole_portfolio
 
     @staticmethod
     def merge_sub_portfolios(portfolio: Portfolio) -> Portfolio:
