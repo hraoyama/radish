@@ -73,14 +73,14 @@ class Portfolio:
     def total_balance(self) -> Dist:
         total = self._balance.readonly()
         for _, sub_portfolio in self._sub_portfolio.items():
-            total += sub_portfolio.balance
+            total += sub_portfolio.total_balance
         return total
 
     @property
     def total_avail_balance(self) -> Dist:
         total = self._avail_balance.readonly()
         for _, sub_portfolio in self._sub_portfolio.items():
-            total += sub_portfolio.avail_balance
+            total += sub_portfolio.total_avail_balance
         return total
 
     def copy_balances(self) -> Tuple[Dist, Dist]:
@@ -94,7 +94,7 @@ class Portfolio:
     def total_trades(self):
         total = self._trades.copy()
         for _, sub_portfolio in self._sub_portfolio.items():
-            total += sub_portfolio.trades
+            total += sub_portfolio.total_trades
         return total
 
     def record_trades(self, fills: List[ExecutionResult]):
@@ -113,11 +113,19 @@ class Portfolio:
 
     @property
     def total_portfolio_records(self) -> pd.DataFrame:
-
-        total = self._portfolio_record.copy()
-        for _, sub_portfolio in self._sub_portfolio.items():
-            total = total.append(sub_portfolio.portfolio_records)
-        return total.sort_index()
+        # total = {self.name: self._portfolio_record.copy()}
+        total = self.portfolio_records
+        for name, sub_portfolio in self._sub_portfolio.items():
+            # total = total.append(sub_portfolio.total_portfolio_records)
+            sub = sub_portfolio.total_portfolio_records
+            t_index = total.index.append(sub.index).unique()
+            total = total.reindex(t_index)
+            total.loc[total.balance.isna(), 'balance'] = [Dist()]
+            total.loc[total.portfolio_value.isna(), 'portfolio_value'] = 0
+            total.loc[sub.index] += sub
+            # total += sub_portfolio.total_portfolio_records
+            # total[name] = sub_portfolio.total_portfolio_records
+        return total
 
     def add_portfolio_records(self, timestamp: datetime):
         new_record = pd.DataFrame({'balance': [self.balance],
