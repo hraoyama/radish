@@ -10,6 +10,8 @@ from collections import defaultdict
 from paprika.core.base_signal import Signal
 
 
+# Todo solve duplicate key in SignalData
+
 class SignalData:
     RESULTS_STRING = "RESULTS"
 

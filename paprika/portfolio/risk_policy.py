@@ -5,6 +5,9 @@ from typing import List, Dict
 from absl import logging
 from datetime import datetime
 
+# TODO: allow RiskPolicy to set the available amount for different type of account.
+
+
 class RiskPolicy(ABC):
     def allocate(self,
                  whole_portfolio: Portfolio,

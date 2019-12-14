@@ -23,7 +23,10 @@ class DataChannel:
     ALL_ARCTIC_SOURCE = (DEFAULT_ARCTIC_SOURCE_NAME,
                          PERMANENT_ARCTIC_SOURCE_NAME
                          )
-
+    AVAILABLE_SYMBOLS = {}
+    CHUNK_RANGE_CACHE = {}
+    LIBRARY_CACHE = {}
+    AVAILABLE_LIBRARY = None
     DATETIME_FORMAT = "%Y%m%d%H%M%S"
     DATE_FORMAT = "%Y%m%d"
     DATA_INDEX = 'Date'
@@ -35,8 +38,12 @@ class DataChannel:
     def library(arctic_source: str = PERMANENT_ARCTIC_SOURCE_NAME,
                 arctic_host: str = DEFAULT_ARCTIC_HOST):
         store = Arctic(arctic_host)
-        assert arctic_source in store.list_libraries()
-        return store[arctic_source]
+        if DataChannel.AVAILABLE_LIBRARY is None:
+            DataChannel.AVAILABLE_LIBRARY = store.list_libraries()
+        assert arctic_source in DataChannel.AVAILABLE_LIBRARY
+        if arctic_source not in DataChannel.LIBRARY_CACHE.keys():
+            DataChannel.LIBRARY_CACHE[arctic_source] = store[arctic_source]
+        return DataChannel.LIBRARY_CACHE[arctic_source]
 
     @staticmethod
     def symbol_add_data_type(symbols: List[str],
@@ -188,42 +195,61 @@ class DataChannel:
         return return_data
 
     @staticmethod
+    def list_symbols(arctic_sources: Optional[Tuple[str]] = ALL_ARCTIC_SOURCE,
+                     arctic_host: Optional[str] = DEFAULT_ARCTIC_HOST,
+                     refresh: Optional[bool] = False):
+        if len(DataChannel.AVAILABLE_SYMBOLS) == 0 or refresh:
+            symbols = {}
+            for arctic_source in arctic_sources:
+                library = DataChannel.library(arctic_source, arctic_host)
+                symbols[arctic_source] = library.list_symbols()
+            DataChannel.AVAILABLE_SYMBOLS = symbols
+            return symbols
+        else:
+            return DataChannel.AVAILABLE_SYMBOLS
+
+    @staticmethod
     def check_register(part_of_symbol_list: List[str],
                        arctic_sources: Optional[Tuple[str]] = ALL_ARCTIC_SOURCE,
                        arctic_host: Optional[str] = DEFAULT_ARCTIC_HOST,
                        return_with_type: Optional[bool] = False):
         pattern_list = [re.compile(x) for x in part_of_symbol_list]
         symbol_matches = {}
+        symbols = DataChannel.list_symbols(arctic_sources, arctic_host)
         for arctic_source in arctic_sources:
-            library = DataChannel.library(arctic_source, arctic_host)
             symbol_matches[arctic_source] = [symbol_match
-                                             for symbol_match in library.list_symbols()
+                                             for symbol_match in symbols[arctic_source]
                                              for plist in pattern_list if plist.match(symbol_match)]
         if return_with_type is False:
-            symbol_matches = DataChannel.symbol_remove_data_type(symbol_matches)
+            symbol_matches = {arctic_source: DataChannel.symbols_remove_data_type(symbols)
+                              for arctic_source, symbols in symbol_matches.items()}
+
         return symbol_matches
 
     @staticmethod
-    def symbol_remove_data_type(symbols_with_type: Dict):
-        symbols_without_type = {}
-        for arctic_source, symbols in symbols_with_type.items():
-            _symbols_without_type = []
-            for symbol in symbols:
-                if str(DataType.CANDLE) in symbol:
-                    symbol_without_type = symbol.replace(str(DataType.CANDLE), '')
-                    symbol_without_type = '.'.join(symbol_without_type.split('.')[0:-2])
-                elif str(DataType.ORDERBOOK) in symbol:
-                    symbol_without_type = symbol.replace(str(DataType.ORDERBOOK), '')
-                elif str(DataType.TRADES) in symbol:
-                    symbol_without_type = symbol.replace(str(DataType.TRADES), '')
-                else:
-                    continue
-                _symbols_without_type.append(symbol_without_type)
-
-            symbols_without_type[arctic_source] = list(set(_symbols_without_type))
+    def symbols_remove_data_type(symbols_with_type: List):
+        symbols_without_type = []
+        for symbol_with_type in symbols_with_type:
+            symbol_without_type = DataChannel.symbol_remove_data_type(symbol_with_type)
+            if symbol_without_type is not None:
+                symbols_without_type.append(symbol_without_type)
 
         return symbols_without_type
 
+    @staticmethod
+    def symbol_remove_data_type(symbol_with_type: str):
+        if str(DataType.CANDLE) in symbol_with_type:
+            symbol_without_type = symbol_with_type.replace(str(DataType.CANDLE), '')
+            symbol_without_type = '.'.join(symbol_without_type.split('.')[0:-2])
+        elif str(DataType.ORDERBOOK) in symbol_with_type:
+            symbol_without_type = symbol_with_type.replace(f'.{str(DataType.ORDERBOOK)}', '')
+        elif str(DataType.TRADES) in symbol_with_type:
+            symbol_without_type = symbol_with_type.replace(f'.{str(DataType.TRADES)}', '')
+        else:
+            symbol_without_type = None
+            logging.debug(f'Wrong Data type for {symbol_with_type}.')
+
+        return symbol_without_type
 
     @staticmethod
     def fetch_price(symbols: List[str],
@@ -283,7 +309,8 @@ class DataChannel:
               time_span: Optional[int] = 1,
               fields: Optional[List[str]] = [],
               arctic_sources: Optional[Tuple[str]] = ALL_ARCTIC_SOURCE,
-              arctic_host: Optional[str] = DEFAULT_ARCTIC_HOST
+              arctic_host: Optional[str] = DEFAULT_ARCTIC_HOST,
+              return_with_type: Optional[bool] = False
               ):
         start, end = DataChannel._correct_start_end(data_type=data_type,
                                                     frequency=frequency,
@@ -331,9 +358,13 @@ class DataChannel:
                                     dfs[symbol] = DataChannel.find_closed_df_timestamp(df, timestamp)
                                     DataChannel.redis.set(redis_key, df.to_msgpack(compress='blosc'))
         if len(dfs):
+            if return_with_type is False:
+                dfs = {DataChannel.symbol_remove_data_type(symbol): df
+                       for symbol, df in dfs.items()}
             df = pd.concat(dfs)
             df.index.names = ['Symbol', DataChannel.DATA_INDEX]
             # return df.groupby([DataChannel.DATA_INDEX, 'Symbol']).first()
+
             return df
         else:
             return None
@@ -361,16 +392,31 @@ class DataChannel:
     def chunk_range(symbol: str,
                     arctic_sources: Tuple[str] = ALL_ARCTIC_SOURCE,
                     arctic_host: str = DEFAULT_ARCTIC_HOST):
-        for arctic_source in arctic_sources:
-            library = DataChannel.library(arctic_source, arctic_host)
-            try:
-                result = library.get_chunk_ranges(symbol)
-                next(result)
-                return library.get_chunk_ranges(symbol)
-            except exceptions.NoDataFoundException as ndf:
-                logging.error(f'{str(ndf)}: {symbol}')
 
-        return None
+        for arctic_source in arctic_sources:
+            if arctic_source not in DataChannel.CHUNK_RANGE_CACHE.keys():
+                DataChannel.CHUNK_RANGE_CACHE[arctic_source] = {}
+            symbols = DataChannel.CHUNK_RANGE_CACHE[arctic_source]
+            if symbol in symbols.keys():
+                return symbols[symbol]
+            else:
+                library = DataChannel.library(arctic_source, arctic_host)
+                try:
+                    chunk_range = library.get_chunk_ranges(symbol)
+                    next(chunk_range)
+                    chunk_range = library.get_chunk_ranges(symbol)
+                    start = pd.to_datetime("".join(map(chr, next(chunk_range)[0])))
+                    tmp_chunk_range = deque(chunk_range, maxlen=1)
+                    try:
+                        end = pd.to_datetime("".join(map(chr, tmp_chunk_range.pop()[1])))
+                    except IndexError:
+                        end = start
+                    symbols[symbol] = [start, end]
+                    return start, end
+                except exceptions.NoDataFoundException as ndf:
+                    logging.error(f'{str(ndf)}: {symbol}')
+
+        return None, None
 
     @staticmethod
     def get_redis_key(symbol,
@@ -380,14 +426,8 @@ class DataChannel:
                       arctic_sources: Tuple[str] = ALL_ARCTIC_SOURCE,
                       arctic_host: str = DEFAULT_ARCTIC_HOST
                       ):
-        chunk_range = DataChannel.chunk_range(symbol, arctic_sources, arctic_host)
-        if chunk_range is not None:
-            db_start = pd.to_datetime("".join(map(chr, next(chunk_range)[0])))
-            tmp_chunk_range = deque(chunk_range, maxlen=1)
-            try:
-                db_end = pd.to_datetime("".join(map(chr, tmp_chunk_range.pop()[1])))
-            except IndexError:
-                db_end = db_start
+        db_start, db_end = DataChannel.chunk_range(symbol, arctic_sources, arctic_host)
+        if db_start is not None:
             if end is None:
                 end = db_end
             else:
