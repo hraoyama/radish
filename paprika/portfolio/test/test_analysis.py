@@ -13,9 +13,12 @@ from paprika.signals.signal_cointegration import CointegrationSpread
 from paprika.portfolio.analysis import PortfolioAnalyser
 import pandas as pd
 from datetime import datetime, timedelta
+import cProfile
 
 
 def test_portfolio_manager():
+    pr = cProfile.Profile()
+    pr.enable()
     tc = TransactionCost(TransactionCostType.FIXED, 0.01)
     order_manager = SimpleOrderManager(tc)
 
@@ -31,7 +34,7 @@ def test_portfolio_manager():
     symbol_patterns = ['SP500.A.*']
     symbols = DataChannel.check_register(symbol_patterns)
     tickers = [symbols['mdb'][0], symbols['mdb'][1]]
-    bollinger_feed = Feed('GOLD_FEED', datetime(2014, 7, 1), datetime(2014, 11, 1))
+    bollinger_feed = Feed('GOLD_FEED', datetime(2014, 7, 1), datetime(2015, 12, 1))
     bollinger_feed.set_feed(tickers, DataType.CANDLE, how='inner')
     gold_bollinger = BollingerBands(LOOKBACK=20, Y_NAME=tickers[0], X_NAME=tickers[1])
     bollinger_feed.add_subscriber(gold_bollinger)
@@ -45,5 +48,7 @@ def test_portfolio_manager():
     result = PortfolioAnalyser.analyse(portfolio_manager.portfolio)
     print(result)
 
+    pr.disable()
+    pr.print_stats(sort="cumulative")
 
 
