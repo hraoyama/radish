@@ -242,9 +242,9 @@ class DataChannel:
             symbol_without_type = symbol_with_type.replace(str(DataType.CANDLE), '')
             symbol_without_type = '.'.join(symbol_without_type.split('.')[0:-2])
         elif str(DataType.ORDERBOOK) in symbol_with_type:
-            symbol_without_type = symbol_with_type.replace(str(DataType.ORDERBOOK), '')
+            symbol_without_type = symbol_with_type.replace(f'.{str(DataType.ORDERBOOK)}', '')
         elif str(DataType.TRADES) in symbol_with_type:
-            symbol_without_type = symbol_with_type.replace(str(DataType.TRADES), '')
+            symbol_without_type = symbol_with_type.replace(f'.{str(DataType.TRADES)}', '')
         else:
             symbol_without_type = None
             logging.debug(f'Wrong Data type for {symbol_with_type}.')
