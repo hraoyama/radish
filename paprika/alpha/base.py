@@ -24,7 +24,7 @@ class Alpha(object):
         self._alpha_universe = {}
         self.load_alpha_universe()
         self._dp = dp
-        self._alpha = {}
+        self._alpha = None
         if len(alpha_pattern_list):
             self.calc_alpha(alpha_pattern_list)
         self._beta = {}
@@ -66,7 +66,11 @@ class Alpha(object):
     def add_alpha(self, alpha: Callable, *args, **kwargs):
         name = alpha.__name__
         self._alpha_universe[name] = alpha
-        self._alpha[name] = alpha(self._dp, *args, **kwargs)
+        if self._alpha is None:
+            self._alpha = pd.DataFrame(alpha(self._dp, *args, **kwargs).stack('Symbol'),
+                                       columns=[name])
+        else:
+            self._alpha[name] = alpha(self._dp, *args, **kwargs).stack('Symbol')
 
     def alpha_info(self, name: str) -> str:
         try:
