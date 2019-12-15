@@ -66,7 +66,7 @@ class Alpha(object):
     def add_alpha(self, alpha: Callable, *args, **kwargs):
         name = alpha.__name__
         self._alpha_universe[name] = alpha
-        self._alpha.loc[:, name] = alpha(self._dp, *args, **kwargs).stack('Symbol')
+        self._alpha[name] = alpha(self._dp, *args, **kwargs).stack('Symbol')
 
     def alpha_info(self, name: str) -> str:
         try:
