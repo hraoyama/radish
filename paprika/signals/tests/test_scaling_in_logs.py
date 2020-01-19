@@ -2,7 +2,7 @@
 from paprika.data.data_channel import DataChannel
 from paprika.data.data_type import DataType
 from paprika.data.feed import Feed
-from paprika.signals.trading_log_spread import DynamicLogSpread
+from paprika.signals.signals.log_scaling_in import ScalingInLogs
 from paprika.utils import utils
 from datetime import datetime
 
@@ -12,7 +12,7 @@ import seaborn as sns
 sns.set()
 
 
-def test_log_trading_spread():
+def test_scaling_in_logs():
 
     DataChannel.clear_redis()
 
@@ -20,7 +20,7 @@ def test_log_trading_spread():
     gold_uso_feed = Feed('GOLD_USO_SPREAD', datetime(2000, 7, 1), datetime(2020, 1, 1))
     gold_uso_feed.set_feed(tickers, DataType.OHLCVAC_PRICE, how='inner')
 
-    gold_uso_signal = DynamicLogSpread(LOOKBACK=20, Y_NAME="USO", X_NAME="GOLD2")
+    gold_uso_signal = ScalingInLogs(LOOKBACK=20, Y_NAME="USO", X_NAME="GOLD2")
     gold_uso_feed.add_subscriber(gold_uso_signal)
 
     gold_uso_signal.run()

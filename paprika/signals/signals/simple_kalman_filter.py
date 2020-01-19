@@ -15,7 +15,7 @@ import numpy as np
 import pandas as pd
 
 
-class SimpleKalmanSignal(FeedSubscriber, Signal):
+class SimpleKalmanFilter(FeedSubscriber, Signal):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
