@@ -42,6 +42,7 @@ class DataChannel:
             DataChannel.AVAILABLE_LIBRARY = store.list_libraries()
         assert arctic_source in DataChannel.AVAILABLE_LIBRARY
         if arctic_source not in DataChannel.LIBRARY_CACHE.keys():
+            store.initialize_library(arctic_source, lib_type=CHUNK_STORE)
             DataChannel.LIBRARY_CACHE[arctic_source] = store[arctic_source]
         return DataChannel.LIBRARY_CACHE[arctic_source]
 
