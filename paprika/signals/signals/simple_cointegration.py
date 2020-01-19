@@ -27,35 +27,48 @@ class CointegrationSpread(FeedSubscriber, Signal):
         self.positions = pd.DataFrame()
         self.prices = pd.DataFrame()
         self.probabilities = pd.DataFrame()
+        self.y_and_x_positions = []
+
         # if either trades come in at separate times or close prices come in a the same time
         # we should be able to handle either
         self.y_data = None
         self.x_data = None
         self.max_time_distance = self.get_parameter("MAX_TIME_DISTANCE", pd.Timedelta(np.timedelta64(10, 's')))
 
-    def calc_position(self, z_score, idx):
+    def calc_long_short(self, z_score):
+
         if z_score <= -self.entry:
-            self.positions = self.positions.append(
-                pd.DataFrame({'DateTime': [idx],
-                              self.y_name: [1.0],
-                              self.x_name: [-1.0]}))
+            y_pos, x_pos = 1., -1.
+
         elif z_score >= self.entry:
-            self.positions = self.positions.append(
-                pd.DataFrame({'DateTime': [idx],
-                              self.y_name: [-1.0],
-                              self.x_name: [1.0]}))
+            y_pos, x_pos = -1., 1.
+
         elif np.abs(z_score) <= self.exit:
-            self.positions = self.positions.append(
-                pd.DataFrame({'DateTime': [idx],
-                              self.y_name: [0.0],
-                              self.x_name: [0.0]}))
+            y_pos, x_pos = 0., 0.
         else:
-            self.positions = self.positions.append(
-                pd.DataFrame({'DateTime': [idx],
-                              self.y_name: [np.nan],
-                              self.x_name: [np.nan]}))
-        self.probabilities = self.probabilities.append(pd.DataFrame({'DateTime': [idx], "probability": [
-            np.abs(np.abs(norm.cdf(z_score, loc=self.mean, scale=self.sigma)) - 0.5) / 0.5]}))
+            y_pos, x_pos = np.nan, np.nan
+
+        return y_pos, x_pos
+
+    def calc_position(self, z_score, idx):
+
+        y_pos, x_pos = self.calc_long_short(z_score)
+        if not self.y_and_x_positions:
+            y_pos_prev, x_pos_prev = (0, 0)
+        else:
+            y_pos_prev, x_pos_prev = self.y_and_x_positions[-1]
+
+        if (y_pos is np.nan) | (x_pos is np.nan):
+            y_pos = y_pos_prev
+            x_pos = x_pos_prev
+
+        self.y_and_x_positions.append((y_pos, x_pos))
+
+        self.positions = self.positions.append(
+            pd.DataFrame({'DateTime': [idx],
+                          self.y_name: [y_pos],
+                          self.x_name: [x_pos]}))
+
         logging.info(f'{self.positions}')
 
     def handle_event(self, events: List[Tuple[DataType, pd.DataFrame]]):

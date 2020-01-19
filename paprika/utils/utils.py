@@ -187,6 +187,7 @@ def drawdown_calculator(excess_returns):
     df['drawdown'] = (1 + df['cum_ret']) / (1 + df['high_mark']) - 1
     max_drawdown = np.min(df['drawdown'])
 
+    df.loc[0, 'duration'] = 0.
     for i in range(1, len(df)):
         df.loc[i, 'duration'] = 0 if df.loc[i, 'drawdown'] == 0 else 1 + df.loc[i-1, 'duration']
     max_drawdown_duration = np.max(df['duration'])
