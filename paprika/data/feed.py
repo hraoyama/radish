@@ -1,7 +1,8 @@
 from paprika.data.fetcher import HistoricalDataFetcher
 from paprika.data.data_channel import DataChannel
 from paprika.data.fetcher import DataType
-from paprika.data.feed_filter import Filtration, TimeFreqFilter, TimePeriod
+from paprika.data.feed_filter import Filtration, TimeFreqFilter
+from paprika.data.constants import TimePeriod
 
 import os
 import sys

@@ -1,11 +1,15 @@
 import numpy as np
 import pandas as pd
+import math
 from typing import Optional, Tuple, Union, List, Callable
+from absl import logging
 
 
 def period_to_int(period: Union[str, int]) -> int:
     if isinstance(period, int):
         return period
+    elif isinstance(period, float):
+        return math.floor(period)
     elif isinstance(period, str):
         return period_str_to_int(period)
     else:
@@ -75,13 +79,26 @@ def ts_rank(df: pd.DataFrame, period: Union[int, str]) -> pd.DataFrame:
         lambda x: pd.Series(x).rank(axis=0, method='min', ascending=False).iloc[-1])
 
 
-def ts_sum(df: pd.DataFrame, period: Union[int, str]) -> pd.DataFrame:
+def ts_sum(df: pd.DataFrame, period: Union[int, str, float]) -> pd.DataFrame:
     return df.rolling(period_to_int(period)).sum()
 
 
-def ts_product(df: pd.DataFrame, period: Union[int, str]) -> pd.DataFrame:
+def ts_product(df: pd.DataFrame, period: Union[int, str, float]) -> pd.DataFrame:
     return df.rolling(period_to_int(period)).apply(lambda x: pd.Series(x).product())
 
 
-def stddev(df: pd.DataFrame, period: Union[int, str]) -> pd.DataFrame:
+def stddev(df: pd.DataFrame, period: Union[int, str, float]) -> pd.DataFrame:
     return df.rolling(period_to_int(period)).std()
+
+
+def adv(df: pd.DataFrame, period: Union[int, str, float]) -> pd.DataFrame:
+    return df.rolling(period_to_int(period)).std()
+
+
+def decay_linear(df: pd.DataFrame, period: Union[int, str, float]):
+    p = period_to_int(period)
+    p_sum = (1 + p) * p / 2
+    w = [(i / p_sum) for i in range(1, p + 1)]
+    w.reverse()
+    w = np.array(w)
+    return df.rolling(p).apply(lambda x: sum(x * w))

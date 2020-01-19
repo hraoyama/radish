@@ -1,4 +1,5 @@
-from paprika.data.feed_filter import TimeFreqFilter, TimePeriod
+from paprika.data.feed_filter import TimeFreqFilter
+from paprika.data.constants import TimePeriod
 from paprika.data.data_processor import DataProcessor
 from paprika.utils.utils import first, last
 

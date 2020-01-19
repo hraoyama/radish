@@ -6,7 +6,8 @@ from paprika.data.data_type import DataType
 from paprika.utils.record import Timeseries
 from paprika.data.data_channel import DataChannel
 from paprika.data.feed import Feed
-from paprika.data.feed_filter import Filtration, TimeFreqFilter, TimePeriod
+from paprika.data.feed_filter import Filtration, TimeFreqFilter
+from paprika.data.constants import TimePeriod
 from paprika.signals.tryout_signal import TryOutSignal
 
 
