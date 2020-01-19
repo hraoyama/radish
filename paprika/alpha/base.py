@@ -107,7 +107,7 @@ class Alpha(object):
         df = pd.DataFrame(columns=self.list_symbols,
                           index=self._alpha.columns)
         for name, value in self._alpha.items():
-            df.loc[name, :] = value.unstack('Symbol').corrwith(self._dp.ret)
+            df.loc[name, :] = value.unstack('Symbol').corrwith(self._dp.ret.shift(-1))
         return df
 
     def add_beta(self, beta: List[Beta]):

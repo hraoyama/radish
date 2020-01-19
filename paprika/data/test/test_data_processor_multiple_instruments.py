@@ -1,5 +1,6 @@
 from paprika.data.data_processor import DataProcessor
-from paprika.data.feed import TimePeriod, TimeFreqFilter
+from paprika.data.feed import TimeFreqFilter
+from paprika.data.constants import TimePeriod
 
 from haidata.fix_colnames import fix_colnames
 

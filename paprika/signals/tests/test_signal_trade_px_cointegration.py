@@ -1,6 +1,7 @@
 from paprika.data.data_type import DataType
 from paprika.data.feed import Feed
-from paprika.data.feed_filter import TimeFreqFilter, Filtration, TimePeriod
+from paprika.data.feed_filter import TimeFreqFilter, Filtration
+from paprika.data.constants import TimePeriod
 from paprika.signals.signal_cointegration import CointegrationSpread
 from paprika.utils import utils
 

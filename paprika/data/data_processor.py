@@ -11,7 +11,7 @@ import functools
 import multiprocessing
 from datetime import datetime
 from multiprocessing import Pool
-from typing import Optional
+from typing import Optional, Union
 
 
 
@@ -178,8 +178,8 @@ class DataProcessor(object):
         df_ohlcv['VOLUME'] = self._data['VOLUME'].unstack('Symbol').resample(time_freq).sum().stack('Symbol')
         df_ohlcv['VWAP'] = self._data.unstack('Symbol').resample(time_freq).apply(
             lambda x: (x.PRICE * x.VOLUME).sum() / x.VOLUME.sum()).stack('Symbol')
-        df_ohlcv['ADV'] = df_ohlcv['CLOSE'].unstack('Symbol').resample(time_freq).mean().stack('Symbol')
-        
+        # df_ohlcv['ADV'] = df_ohlcv['CLOSE'].unstack('Symbol').resample(time_freq).mean().stack('Symbol')
+
         return df_ohlcv
     
     def ohlcv_from_ohlcv(self, time_freq):
@@ -191,8 +191,8 @@ class DataProcessor(object):
         df_ohlcv['VOLUME'] = self._data['VOLUME'].unstack('Symbol').resample(time_freq).sum().stack('Symbol')
         df_ohlcv['VWAP'] = self._data.unstack('Symbol').resample(time_freq).apply(
             lambda x: (x.CLOSE * x.VOLUME).sum() / x.VOLUME.sum()).stack('Symbol')
-        df_ohlcv['ADV'] = self._data['CLOSE'].unstack('Symbol').resample(time_freq).mean().stack('Symbol')
-        
+        # df_ohlcv['ADV'] = self._data.unstack('Symbol').resample(time_freq).apply(
+        #     lambda x: (x.CLOSE * x.VOLUME).sum()).stack('Symbol')
         return df_ohlcv
     
     def time_freq(self, *args, **kwargs):
@@ -278,10 +278,11 @@ class DataProcessor(object):
         else:
             return None
     
-    @property
-    def adv(self, period: str):
-        if 'ADV' in self._data.columns:
-            return self._data['ADV'].unstack('Symbol')
+    def adv(self, period: Union[int, str]):
+        if 'VWAP' in self._data.columns and 'VOLUME' in self._data.columns:
+            if 'ADV' not in self._data.columns:
+                self._data['ADV'] = self._data['VWAP'] * self._data['VOLUME']
+            return self._data['ADV'].unstack('Symbol').rolling(period).mean()
         else:
             return None
     
@@ -291,3 +292,4 @@ class DataProcessor(object):
             return self._data['RETURN'].unstack('Symbol')
         else:
             return None
+

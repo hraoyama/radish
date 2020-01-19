@@ -1,5 +1,6 @@
 from paprika.data.data_processor import DataProcessor
-from paprika.data.feed_filter import TimePeriod, TimeFreqFilter
+from paprika.data.feed_filter import TimeFreqFilter
+from paprika.data.constants import TimePeriod
 from paprika.data.data_channel import DataChannel
 
 from pprint import pprint as pp

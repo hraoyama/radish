@@ -5,7 +5,8 @@ from pprint import pprint as pp
 from paprika.data.data_type import DataType
 from paprika.data.data_channel import DataChannel
 from paprika.data.feed import Feed
-from paprika.data.feed_filter import TimeFreqFilter, Filtration, TimePeriod
+from paprika.data.feed_filter import TimeFreqFilter, Filtration
+from paprika.data.constants import TimePeriod
 from paprika.signals.pair_spread_ols_signal import PairSpread
 
 def test_pair_spread_signal():

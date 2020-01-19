@@ -1,4 +1,5 @@
 from collections import OrderedDict
+from enum import Enum
 
 DEFAULT_OHLCV_LIMIT = 30
 DEFAULT_ORDER_BOOK_DEPTH = 5
@@ -75,3 +76,20 @@ class OrderBookColumnName(object):
     Ask_Qty_Lev_3 = 'Ask_Qty_Lev_3'
     Ask_Qty_Lev_4 = 'Ask_Qty_Lev_4'
 
+
+class TimePeriod(Enum):
+    # https://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html#timeseries-offset-aliases
+    DAY = 'D'
+    BUSINESS_DAY = 'B'
+    WEEK = 'W'
+    MONTH_END = 'M'
+    BUSINESS_MONTH_END = 'BM'
+    SEMI_MONTH_END = 'SM'
+    QUARTER = 'Q'
+    HOUR = 'H'
+    BUSINESS_HOUR = 'BH'
+    MINUTE = 'T'
+    SECOND = 'S'
+    MILLISECOND = 'L'
+    MICROSECOND = 'U'
+    CONTINUOUS = ''

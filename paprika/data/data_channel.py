@@ -3,7 +3,7 @@ import logging
 from arctic import exceptions, Arctic, CHUNK_STORE
 from arctic.date import DateRange
 # import pyarrow as pa
-
+import multiprocessing as mp
 from datetime import datetime, timedelta
 import redis
 import re
@@ -333,7 +333,7 @@ class DataChannel:
                                                           start,
                                                           end,
                                                           fields,
-                                                          arctic_sources,
+                                                          arctic_source,
                                                           arctic_host
                                                           )
                     if redis_key is not None:
@@ -350,7 +350,7 @@ class DataChannel:
                                                                 start=start,
                                                                 end=end,
                                                                 fields=fields,
-                                                                arctic_sources=arctic_sources,
+                                                                arctic_source=arctic_source,
                                                                 arctic_host=arctic_host)
 
                             if df is not None:
@@ -374,47 +374,44 @@ class DataChannel:
                            start: Optional[Union[int, datetime]] = None,
                            end: Optional[Union[int, datetime]] = None,
                            fields: Optional[List[str]] = [],
-                           arctic_sources: Tuple[str] = ALL_ARCTIC_SOURCE,
+                           arctic_source: str = DEFAULT_ARCTIC_SOURCE_NAME,
                            arctic_host: str = DEFAULT_ARCTIC_HOST):
 
-        for arctic_source in arctic_sources:
-            library = DataChannel.library(arctic_source, arctic_host)
-            try:
-                df = library.read(symbol=symbol, chunk_range=DateRange(start, end), columns=fields)
-                df = df.loc[~df.index.duplicated(keep='first')]
-                return df
-            except exceptions.NoDataFoundException as ndf:
-                logging.error(f'{str(ndf)} for {start} to {end}')
-
-        return None
+        library = DataChannel.library(arctic_source, arctic_host)
+        try:
+            df = library.read(symbol=symbol, chunk_range=DateRange(start, end), columns=fields)
+            df = df.loc[~df.index.duplicated(keep='first')]
+            return df
+        except exceptions.NoDataFoundException as ndf:
+            logging.error(f'{str(ndf)} for {start} to {end}')
+            return None
 
     @staticmethod
     def chunk_range(symbol: str,
-                    arctic_sources: Tuple[str] = ALL_ARCTIC_SOURCE,
+                    arctic_source: str = DEFAULT_ARCTIC_SOURCE_NAME,
                     arctic_host: str = DEFAULT_ARCTIC_HOST):
 
-        for arctic_source in arctic_sources:
-            if arctic_source not in DataChannel.CHUNK_RANGE_CACHE.keys():
-                DataChannel.CHUNK_RANGE_CACHE[arctic_source] = {}
-            symbols = DataChannel.CHUNK_RANGE_CACHE[arctic_source]
-            if symbol in symbols.keys():
-                return symbols[symbol]
-            else:
-                library = DataChannel.library(arctic_source, arctic_host)
+        if arctic_source not in DataChannel.CHUNK_RANGE_CACHE.keys():
+            DataChannel.CHUNK_RANGE_CACHE[arctic_source] = {}
+        symbols = DataChannel.CHUNK_RANGE_CACHE[arctic_source]
+        if symbol in symbols.keys():
+            return symbols[symbol]
+        else:
+            library = DataChannel.library(arctic_source, arctic_host)
+            try:
+                chunk_range = library.get_chunk_ranges(symbol)
+                next(chunk_range)
+                chunk_range = library.get_chunk_ranges(symbol)
+                start = pd.to_datetime("".join(map(chr, next(chunk_range)[0])))
+                tmp_chunk_range = deque(chunk_range, maxlen=1)
                 try:
-                    chunk_range = library.get_chunk_ranges(symbol)
-                    next(chunk_range)
-                    chunk_range = library.get_chunk_ranges(symbol)
-                    start = pd.to_datetime("".join(map(chr, next(chunk_range)[0])))
-                    tmp_chunk_range = deque(chunk_range, maxlen=1)
-                    try:
-                        end = pd.to_datetime("".join(map(chr, tmp_chunk_range.pop()[1])))
-                    except IndexError:
-                        end = start
-                    symbols[symbol] = [start, end]
-                    return start, end
-                except exceptions.NoDataFoundException as ndf:
-                    logging.error(f'{str(ndf)}: {symbol}')
+                    end = pd.to_datetime("".join(map(chr, tmp_chunk_range.pop()[1])))
+                except IndexError:
+                    end = start
+                symbols[symbol] = [start, end]
+                return start, end
+            except exceptions.NoDataFoundException as ndf:
+                logging.error(f'{str(ndf)}: {symbol}')
 
         return None, None
 
@@ -423,10 +420,10 @@ class DataChannel:
                       start: Optional[Union[int, datetime]] = None,
                       end: Optional[Union[int, datetime]] = None,
                       fields: Optional[List[str]] = [],
-                      arctic_sources: Tuple[str] = ALL_ARCTIC_SOURCE,
+                      arctic_source: str = DEFAULT_ARCTIC_SOURCE_NAME,
                       arctic_host: str = DEFAULT_ARCTIC_HOST
                       ):
-        db_start, db_end = DataChannel.chunk_range(symbol, arctic_sources, arctic_host)
+        db_start, db_end = DataChannel.chunk_range(symbol, arctic_source, arctic_host)
         if db_start is not None:
             if end is None:
                 end = db_end
