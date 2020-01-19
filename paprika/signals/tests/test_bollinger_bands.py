@@ -1,31 +1,37 @@
 from datetime import datetime
 from paprika.data.data_type import DataType
 from paprika.data.feed import Feed
-from paprika.signals.assessor import Assessor
-from paprika.signals.signal_bollinger_bands import BollingerBands
+from paprika.signals.signals.bollinger_bands import BollingerBands
+from paprika.data.data_channel import DataChannel
 from paprika.utils import utils
+import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
+sns.set()
 
 
 def test_bollinger_bands():
 
-    # # in order to explore the data in advance
-    # from paprika.data.data_channel import DataChannel
-    # DataChannel.check_register(["GLD","GDX"], feeds_db=False)
-    # gld = DataChannel.download('GLD.OHLCVAC_PRICE', DataChannel.PERMANENT_ARCTIC_SOURCE_NAME, use_redis=False )
-    # gdx = DataChannel.download('GDX.OHLCVAC_PRICE', DataChannel.PERMANENT_ARCTIC_SOURCE_NAME, use_redis=False )
-    # gld.index.intersection(gdx.index)
-    # gdx.index.intersection(gld.index)
+    DataChannel.clear_redis()
 
-    tickers = ["GLD", "GDX"]
-    bollinger_feed = Feed('GOLD_FEED', datetime(1950, 7, 1), datetime(2050, 1, 1))
-    bollinger_feed.set_feed(tickers, DataType.OHLCVAC_PRICE, how='inner')
+    tickers = ["GOLD2", "USO"]
+    gold_uso_feed = Feed('GOLD_USO_SPREAD', datetime(2000, 7, 1), datetime(2020, 1, 1))
+    gold_uso_feed.set_feed(tickers, DataType.OHLCVAC_PRICE, how='inner')
 
-    gold_bollinger = BollingerBands(LOOKBACK=20, Y_NAME="GLD", X_NAME="GDX")
-    bollinger_feed.add_subscriber(gold_bollinger)
+    gold_uso_signal = BollingerBands(LOOKBACK=20, Y_NAME="USO", X_NAME="GOLD2")
+    gold_uso_feed.add_subscriber(gold_uso_signal)
 
-    gold_bollinger.run()
-    print(gold_bollinger.positions.head())
-    gold_signal_data = gold_bollinger.signal_data()
-    gold_assessor = Assessor(gold_signal_data)
+    gold_uso_signal.run()
+    gold_uso_spreads = gold_uso_signal.spreads[gold_uso_signal.lookback-1:]
+    gold_uso_positions = gold_uso_signal.positions[gold_uso_signal.lookback-1:]
+    gold_uso_prices = gold_uso_signal.prices[gold_uso_signal.lookback-1:]
+    plt.plot(gold_uso_prices['DateTime'], gold_uso_spreads)
+    plt.show()
 
+    column_names = [gold_uso_signal.y_name, gold_uso_signal.x_name]
+    gold_uso_returns = utils.returns_calculator(gold_uso_prices[column_names], 1)
+    # daily P&L of the strategy
+    gold_uso_pnl = utils.portfolio_return_calculator(gold_uso_positions[column_names], gold_uso_returns)
+    strategy_return = gold_uso_pnl / np.sum(np.abs(gold_uso_positions[column_names].shift()), axis=1)
+    strategy_return[strategy_return.isnull()] = 0
+    _ = utils.stats_print(gold_uso_prices['DateTime'], strategy_return)

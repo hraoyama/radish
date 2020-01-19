@@ -24,9 +24,9 @@ def test_scaling_in_gold_spread():
     gold_uso_feed.add_subscriber(gold_uso_signal)
 
     gold_uso_signal.run()
-    gold_uso_spreads = gold_uso_signal.spreads[gold_uso_signal.lookback:]
-    gold_uso_positions = gold_uso_signal.positions[gold_uso_signal.lookback:]
-    gold_uso_prices = gold_uso_signal.prices[gold_uso_signal.lookback:]
+    gold_uso_spreads = gold_uso_signal.spreads[gold_uso_signal.lookback-1:]
+    gold_uso_positions = gold_uso_signal.positions[gold_uso_signal.lookback-1:]
+    gold_uso_prices = gold_uso_signal.prices[gold_uso_signal.lookback-1:]
     plt.plot(gold_uso_prices['DateTime'], gold_uso_spreads)
     plt.show()
 
