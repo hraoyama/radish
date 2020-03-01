@@ -113,7 +113,7 @@ class SimpleOrderManager(OrderManager):
                                          start=order.creation_time + self._time_delay,
                                          end=order.creation_time + self._candle_time_span)
                 if data is not None:
-                    data = data.unstack('Symbol')
+                    data = data.unstack(DataChannel.SYMBOL_INDEX)
                     remaining_order = copy.copy(order)
                     for idx_to_check in data.index:
                         portfolio, remaining_order = self._extract_from_candle(portfolio,

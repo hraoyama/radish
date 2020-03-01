@@ -60,6 +60,7 @@ class PortfolioManager:
                                                         signals_data,
                                                         signal_names.dropna().to_list(),
                                                         order_type)
+        return self._portfolio
 
     # TODO change get_indices()[0] to start_time
     def record_initial_portfolios(self, signals_data: Dict[str, SignalData]):
@@ -121,12 +122,13 @@ class PortfolioManager:
 
         orders = {}
         for symbol, amount in diff_in_amount.items():
-            orders[symbol] = self.get_order_from_signal(
-                orders,
-                symbol,
-                amount,
-                timestamp,
-                order_type)
+            if not isclose(amount, 0):
+                orders[symbol] = self.get_order_from_signal(
+                    orders,
+                    symbol,
+                    amount,
+                    timestamp,
+                    order_type)
 
         return orders
 

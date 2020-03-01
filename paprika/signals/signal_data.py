@@ -7,8 +7,9 @@ import pandas as pd
 from typing import List, Tuple
 from collections import defaultdict
 
-from paprika.core.base_signal import Signal
 
+from paprika.core.base_signal import Signal
+from paprika.data.data_channel import DataChannel
 
 # Todo solve duplicate key in SignalData
 
@@ -77,10 +78,10 @@ class SignalData:
             return temp
 
     @staticmethod
-    def create_indexed_frame(orig_frame, dt_col="DateTime"):
+    def create_indexed_frame(orig_frame, dt_col=DataChannel.DATA_INDEX):
         ts1 = orig_frame.copy()
+        ts1.reset_index(inplace=True)
         ts1 = ts1.sort_values(by=[dt_col])
-        ts1 = ts1.reset_index(drop=True)
-        ts1 = ts1.rename(columns={dt_col: 'date'})
-        ts1.set_index('date', inplace=True)
+        ts1 = ts1.rename(columns={dt_col: DataChannel.DATA_INDEX})
+        ts1.set_index(DataChannel.DATA_INDEX, inplace=True)
         return ts1
