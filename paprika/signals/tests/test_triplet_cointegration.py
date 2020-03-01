@@ -2,11 +2,11 @@ from paprika.utils import utils
 from datetime import datetime
 from paprika.data.data_type import DataType
 from paprika.data.feed import Feed
-from paprika.signals.cointegration_commodity_ETFs import CointegrationTriplet
+from paprika.signals.signals.triplet_cointegration import CointegrationTriplet
 import numpy as np
 
 
-def test_signal_cointegration_triplet():
+def test_triplet_cointegration():
 
     tickers = ["EWA", "EWC", "IGE2"]
     triplet_feed = Feed('COMMODITY_SPREAD', datetime(2000, 7, 1), datetime(2020, 1, 1))

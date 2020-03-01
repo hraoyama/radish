@@ -25,7 +25,6 @@ class BollingerBands(FeedSubscriber, Signal):
         self.prices = pd.DataFrame()
         self.spreads = []
         self.longs_and_shorts = []
-        self.zscores = []
         
         # if either trades come in at separate times or close prices come in a the same time
         # we should be able to handle either
@@ -146,7 +145,6 @@ class BollingerBands(FeedSubscriber, Signal):
                     self.spreads.append(calc_spread)
                     z_score = (calc_spread - np.mean(self.spreads[-self.lookback:])) /\
                               np.std(self.spreads[-self.lookback:], ddof=1)
-                    self.zscores.append(z_score)
                     self.calc_position(z_score, beta, last_index)
 
                     logging.info(f'{self.positions}')

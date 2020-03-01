@@ -12,7 +12,7 @@ from typing import List, Tuple
 import logging
 
 
-class DynamicLogSpread(FeedSubscriber, Signal):
+class ScalingInLogs(FeedSubscriber, Signal):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

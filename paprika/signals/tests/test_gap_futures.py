@@ -3,7 +3,7 @@ from datetime import datetime
 from paprika.data.data_channel import DataChannel
 from paprika.data.data_type import DataType
 from paprika.data.feed import Feed
-from paprika.signals.gap_futures import GapFutures
+from paprika.signals.signals.gap_futures import GapFutures
 from paprika.utils import utils
 
 
