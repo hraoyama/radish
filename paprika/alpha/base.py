@@ -10,6 +10,7 @@ import importlib
 import re
 from absl import logging
 
+from paprika.data.data_channel import DataChannel
 from paprika.data.data_processor import DataProcessor
 from paprika.alpha.beta import Beta
 from paprika.alpha.utils import *
@@ -30,7 +31,7 @@ class Alpha(object):
         self._beta = {}
 
     def __getitem__(self, name: str) -> pd.DataFrame:
-        return self._alpha[name].unstack('Symbol')
+        return self._alpha[name].unstack(DataChannel.SYMBOL_INDEX)
 
     def load_alpha_universe(self):
         self._alpha_universe = {}
@@ -55,7 +56,7 @@ class Alpha(object):
                     # self._alpha[name] = alpha(self._dp)
         df = pd.concat(alphas)
         df.index.names = ['Alpha', 'Start_Period']
-        self._alpha = df.groupby(['Start_Period', 'Alpha']).first().unstack('Alpha').stack('Symbol')
+        self._alpha = df.groupby(['Start_Period', 'Alpha']).first().unstack('Alpha').stack(DataChannel.SYMBOL_INDEX)
 
     def list_alpha(self) -> List[str]:
         return self._alpha.columns.to_list()
@@ -67,10 +68,10 @@ class Alpha(object):
         name = alpha.__name__
         self._alpha_universe[name] = alpha
         if self._alpha is None:
-            self._alpha = pd.DataFrame(alpha(self._dp, *args, **kwargs).stack('Symbol'),
+            self._alpha = pd.DataFrame(alpha(self._dp, *args, **kwargs).stack(DataChannel.SYMBOL_INDEX),
                                        columns=[name])
         else:
-            self._alpha[name] = alpha(self._dp, *args, **kwargs).stack('Symbol')
+            self._alpha[name] = alpha(self._dp, *args, **kwargs).stack(DataChannel.SYMBOL_INDEX)
 
     def alpha_info(self, name: str) -> str:
         try:
@@ -92,14 +93,14 @@ class Alpha(object):
     def corr_between_alphas(self):
         # TODO it's a slow way
 
-        df = self._alpha.unstack('Symbol').stack('Alpha')
+        df = self._alpha.unstack(DataChannel.SYMBOL_INDEX).stack('Alpha')
         df_corr = {}
         for symbol in df.columns:
             tmp = df.loc[:, symbol].unstack('Alpha')
             df_corr[symbol] = tmp.corr()
 
         df_corr = pd.concat(df_corr)
-        df_corr.index.name = ['Symbol', 'Alpha']
+        df_corr.index.name = [DataChannel.SYMBOL_INDEX, 'Alpha']
         return df_corr
 
     def corr_between_alpha_and_return(self):
@@ -107,7 +108,7 @@ class Alpha(object):
         df = pd.DataFrame(columns=self.list_symbols,
                           index=self._alpha.columns)
         for name, value in self._alpha.items():
-            df.loc[name, :] = value.unstack('Symbol').corrwith(self._dp.ret.shift(-1))
+            df.loc[name, :] = value.unstack(DataChannel.SYMBOL_INDEX).corrwith(self._dp.ret.shift(-1))
         return df
 
     def add_beta(self, beta: List[Beta]):
@@ -119,9 +120,9 @@ class Alpha(object):
     def analyze_whole(self,
                       predict_period: Optional[int] = 1,
                       mini_period: Optional[int] = 200):
-        symbols = self._alpha.index.get_level_values('Symbol')
+        symbols = self._alpha.index.get_level_values(DataChannel.SYMBOL_INDEX)
         for symbol in symbols:
-            alpha = self._alpha.xs(symbol, level='Symbol')
+            alpha = self._alpha.xs(symbol, level=DataChannel.SYMBOL_INDEX)
             ret = self._dp.ret[symbol]
             for start in range(mini_period + predict_period, ret.shape[0]):
 

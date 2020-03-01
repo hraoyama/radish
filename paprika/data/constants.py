@@ -39,18 +39,19 @@ ORDERBOOK_COLUMN_INDICES = OrderedDict({
 
 
 class TradeColumnName(object):
-    Price = 'Price'
-    Qty = 'Qty'
-    Volume = 'Volume'
+    Price = 'price'
+    Qty = 'qty'
+    Volume = 'volume'
 
 
 class CandleColumnName(object):
-    Close = 'Close'
-    Open = 'Open'
-    High = 'High'
-    Low = 'Low'
-    Volume = 'Volume'
-    Return = 'Return'
+    Close = 'close'
+    Open = 'open'
+    High = 'high'
+    Low = 'low'
+    Volume = 'volume'
+    Return = 'return'
+    Vwap = 'vwap'
 
 
 class OrderBookColumnName(object):

@@ -3,12 +3,13 @@ import logging
 from arctic import exceptions, Arctic, CHUNK_STORE
 from arctic.date import DateRange
 # import pyarrow as pa
-import multiprocessing as mp
+from multiprocessing import Pool, TimeoutError
 from datetime import datetime, timedelta
 import redis
 import re
 from typing import List, Union, Optional, Tuple, Dict
-from collections import deque
+from collections import deque, ChainMap
+from functools import partial
 
 from paprika.data.data_type import DataType
 from paprika.data.constants import OrderBookColumnName, CandleColumnName, TradeColumnName
@@ -29,7 +30,8 @@ class DataChannel:
     AVAILABLE_LIBRARY = None
     DATETIME_FORMAT = "%Y%m%d%H%M%S"
     DATE_FORMAT = "%Y%m%d"
-    DATA_INDEX = 'Date'
+    DATA_INDEX = 'date'
+    SYMBOL_INDEX = 'symbol'
 
     TRADE_TIME_SPAN_UNIT = 'D'
     ORDERBOOK_TIME_SPAN_UNIT = 'S'
@@ -363,9 +365,133 @@ class DataChannel:
                 dfs = {DataChannel.symbol_remove_data_type(symbol): df
                        for symbol, df in dfs.items()}
             df = pd.concat(dfs)
-            df.index.names = ['Symbol', DataChannel.DATA_INDEX]
-            # return df.groupby([DataChannel.DATA_INDEX, 'Symbol']).first()
+            df.index.names = [DataChannel.SYMBOL_INDEX, DataChannel.DATA_INDEX]
+            df.columns = [col.lower() for col in df.columns]
 
+            # return df.groupby([DataChannel.DATA_INDEX, 'symbol']).first()
+
+            return df
+        else:
+            return None
+
+    @staticmethod
+    def _fetch(symbol: str,
+               data_type: Optional[DataType] = DataType.CANDLE,
+               frequency: Optional[str] = '1D',
+               timestamp: Optional[Union[int, datetime]] = None,
+               start: Optional[Union[int, datetime]] = None,
+               end: Optional[Union[int, datetime]] = None,
+               time_span: Optional[int] = 1,
+               fields: Optional[List[str]] = [],
+               arctic_source: Optional[str] = PERMANENT_ARCTIC_SOURCE_NAME,
+               arctic_host: Optional[str] = DEFAULT_ARCTIC_HOST
+               ):
+        start, end = DataChannel._correct_start_end(data_type=data_type,
+                                                    frequency=frequency,
+                                                    timestamp=timestamp,
+                                                    start=start,
+                                                    end=end,
+                                                    time_span=time_span)
+
+        symbols_with_data_type = DataChannel.symbol_add_data_type([symbol],
+                                                                  data_type,
+                                                                  frequency)
+
+        symbols_in_db = DataChannel.check_register(symbols_with_data_type,
+                                                   (arctic_source,),
+                                                   arctic_host,
+                                                   return_with_type=True)
+
+        for symbol in symbols_in_db[arctic_source]:
+            redis_key = DataChannel.get_redis_key(symbol,
+                                                  start,
+                                                  end,
+                                                  fields,
+                                                  arctic_source,
+                                                  arctic_host
+                                                  )
+            if redis_key is not None:
+                msg = DataChannel.redis.get(redis_key)
+                if msg:
+                    logging.debug(f'Load Redis cache for {redis_key}')
+                    df = pd.read_msgpack(msg)
+                    if df.shape[0]:
+                        df = DataChannel.find_closed_df_timestamp(df, timestamp)
+                        return {symbol: df}
+                    else:
+                        return None
+                else:
+                    logging.debug(f'Cache not existent for {redis_key}. '
+                                  f'Read from mongodb library {DataChannel.PERMANENT_ARCTIC_SOURCE_NAME}.')
+                    df = DataChannel.fetch_from_mongodb(symbol,
+                                                        start=start,
+                                                        end=end,
+                                                        fields=fields,
+                                                        arctic_source=arctic_source,
+                                                        arctic_host=arctic_host)
+
+                    if df is not None:
+                        if df.shape[0]:
+                            DataChannel.redis.set(redis_key, df.to_msgpack(compress='blosc'))
+                            df = DataChannel.find_closed_df_timestamp(df, timestamp)
+                            return {symbol: df}
+                        else:
+                            return None
+                    else:
+                        return None
+            else:
+                return None
+
+    # TODO: solve method 'acquire' of '_thread.lock' objects takes too long time and threading.py:534(wait)
+    @staticmethod
+    def fetch_mp(symbols: List[str],
+                 data_type: Optional[DataType] = DataType.CANDLE,
+                 frequency: Optional[str] = '1D',
+                 timestamp: Optional[Union[int, datetime]] = None,
+                 start: Optional[Union[int, datetime]] = None,
+                 end: Optional[Union[int, datetime]] = None,
+                 time_span: Optional[int] = 1,
+                 fields: Optional[List[str]] = [],
+                 arctic_sources: Optional[Tuple[str]] = ALL_ARCTIC_SOURCE,
+                 arctic_host: Optional[str] = DEFAULT_ARCTIC_HOST,
+                 return_with_type: Optional[bool] = False
+                 ):
+        symbols_with_data_type = DataChannel.symbol_add_data_type(symbols,
+                                                                  data_type,
+                                                                  frequency)
+
+        symbols_in_db = DataChannel.check_register(symbols_with_data_type,
+                                                   arctic_sources,
+                                                   arctic_host,
+                                                   return_with_type=True)
+        all_dfs = {}
+        pool = Pool()
+        for arctic_source in arctic_sources:
+            symbol_list = [DataChannel.symbol_remove_data_type(symbol)
+                           for symbol in symbols_in_db[arctic_source]]
+            pf = partial(DataChannel._fetch,
+                         data_type=data_type,
+                         frequency=frequency,
+                         timestamp=timestamp,
+                         start=start,
+                         end=end,
+                         time_span=time_span,
+                         fields=fields,
+                         arctic_source=arctic_source,
+                         arctic_host=arctic_host
+                         )
+            dfs = pool.map(pf, symbol_list)
+            for df in dfs:
+                if df is not None:
+                    if list(df.keys())[0] not in all_dfs.keys():
+                        all_dfs.update(df)
+        if len(all_dfs):
+            if return_with_type is False:
+                all_dfs = {DataChannel.symbol_remove_data_type(symbol): df
+                           for symbol, df in all_dfs.items()}
+            df = pd.concat(all_dfs)
+            df.index.names = [DataChannel.SYMBOL_INDEX, DataChannel.DATA_INDEX]
+            df.columns = [col.lower() for col in df.columns]
             return df
         else:
             return None
@@ -375,8 +501,8 @@ class DataChannel:
                            start: Optional[Union[int, datetime]] = None,
                            end: Optional[Union[int, datetime]] = None,
                            fields: Optional[List[str]] = [],
-                           arctic_source: str = DEFAULT_ARCTIC_SOURCE_NAME,
-                           arctic_host: str = DEFAULT_ARCTIC_HOST):
+                           arctic_source: Optional[str] = DEFAULT_ARCTIC_SOURCE_NAME,
+                           arctic_host: Optional[str] = DEFAULT_ARCTIC_HOST):
 
         library = DataChannel.library(arctic_source, arctic_host)
         try:
@@ -389,8 +515,8 @@ class DataChannel:
 
     @staticmethod
     def chunk_range(symbol: str,
-                    arctic_source: str = DEFAULT_ARCTIC_SOURCE_NAME,
-                    arctic_host: str = DEFAULT_ARCTIC_HOST):
+                    arctic_source: Optional[str] = DEFAULT_ARCTIC_SOURCE_NAME,
+                    arctic_host: Optional[str] = DEFAULT_ARCTIC_HOST):
 
         if arctic_source not in DataChannel.CHUNK_RANGE_CACHE.keys():
             DataChannel.CHUNK_RANGE_CACHE[arctic_source] = {}
