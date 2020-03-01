@@ -22,7 +22,7 @@ def main():
                       f'{symbol}.Volume']
                      for symbol in symbols]
     for symbol_ohlcv in symbols_ohlcv:
-        symbol = symbol_ohlcv[0].split('.')[0]
+        symbol = ".".join(symbol_ohlcv[0].split('.')[:-1])
         df = stocks[symbol_ohlcv][:]
         df.loc[:, 'Symbol'] = symbol
         df.rename(columns={f'{symbol}.Open': 'Open',
