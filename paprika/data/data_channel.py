@@ -303,18 +303,18 @@ class DataChannel:
                     return None
 
     @staticmethod
-    def fetch(symbols: List[str],
-              data_type: Optional[DataType] = DataType.CANDLE,
-              frequency: Optional[str] = '1D',
-              timestamp: Optional[Union[int, datetime]] = None,
-              start: Optional[Union[int, datetime]] = None,
-              end: Optional[Union[int, datetime]] = None,
-              time_span: Optional[int] = 1,
-              fields: Optional[List[str]] = [],
-              arctic_sources: Optional[Tuple[str]] = ALL_ARCTIC_SOURCE,
-              arctic_host: Optional[str] = DEFAULT_ARCTIC_HOST,
-              return_with_type: Optional[bool] = False
-              ):
+    def fetch_nmp(symbols: List[str],
+                  data_type: Optional[DataType] = DataType.CANDLE,
+                  frequency: Optional[str] = '1D',
+                  timestamp: Optional[Union[int, datetime]] = None,
+                  start: Optional[Union[int, datetime]] = None,
+                  end: Optional[Union[int, datetime]] = None,
+                  time_span: Optional[int] = 1,
+                  fields: Optional[List[str]] = [],
+                  arctic_sources: Optional[Tuple[str]] = ALL_ARCTIC_SOURCE,
+                  arctic_host: Optional[str] = DEFAULT_ARCTIC_HOST,
+                  return_with_type: Optional[bool] = False
+                  ):
         start, end = DataChannel._correct_start_end(data_type=data_type,
                                                     frequency=frequency,
                                                     timestamp=timestamp,
@@ -444,18 +444,18 @@ class DataChannel:
 
     # TODO: solve method 'acquire' of '_thread.lock' objects takes too long time and threading.py:534(wait)
     @staticmethod
-    def fetch_mp(symbols: List[str],
-                 data_type: Optional[DataType] = DataType.CANDLE,
-                 frequency: Optional[str] = '1D',
-                 timestamp: Optional[Union[int, datetime]] = None,
-                 start: Optional[Union[int, datetime]] = None,
-                 end: Optional[Union[int, datetime]] = None,
-                 time_span: Optional[int] = 1,
-                 fields: Optional[List[str]] = [],
-                 arctic_sources: Optional[Tuple[str]] = ALL_ARCTIC_SOURCE,
-                 arctic_host: Optional[str] = DEFAULT_ARCTIC_HOST,
-                 return_with_type: Optional[bool] = False
-                 ):
+    def fetch(symbols: List[str],
+              data_type: Optional[DataType] = DataType.CANDLE,
+              frequency: Optional[str] = '1D',
+              timestamp: Optional[Union[int, datetime]] = None,
+              start: Optional[Union[int, datetime]] = None,
+              end: Optional[Union[int, datetime]] = None,
+              time_span: Optional[int] = 1,
+              fields: Optional[List[str]] = [],
+              arctic_sources: Optional[Tuple[str]] = ALL_ARCTIC_SOURCE,
+              arctic_host: Optional[str] = DEFAULT_ARCTIC_HOST,
+              return_with_type: Optional[bool] = False
+              ):
         symbols_with_data_type = DataChannel.symbol_add_data_type(symbols,
                                                                   data_type,
                                                                   frequency)
@@ -485,6 +485,7 @@ class DataChannel:
                 if df is not None:
                     if list(df.keys())[0] not in all_dfs.keys():
                         all_dfs.update(df)
+        pool.close()
         if len(all_dfs):
             if return_with_type is False:
                 all_dfs = {DataChannel.symbol_remove_data_type(symbol): df
@@ -492,6 +493,8 @@ class DataChannel:
             df = pd.concat(all_dfs)
             df.index.names = [DataChannel.SYMBOL_INDEX, DataChannel.DATA_INDEX]
             df.columns = [col.lower() for col in df.columns]
+            if DataChannel.SYMBOL_INDEX in df.columns:
+                df = df.drop([DataChannel.SYMBOL_INDEX], axis=1)
             return df
         else:
             return None
@@ -506,7 +509,10 @@ class DataChannel:
 
         library = DataChannel.library(arctic_source, arctic_host)
         try:
-            df = library.read(symbol=symbol, chunk_range=DateRange(start, end), columns=fields)
+            df = library.read(symbol=symbol, chunk_range=DateRange(start, end))
+            df.columns = [col.lower() for col in df.columns]
+            if fields:
+                df = df[fields]
             df = df.loc[~df.index.duplicated(keep='first')]
             return df
         except exceptions.NoDataFoundException as ndf:
