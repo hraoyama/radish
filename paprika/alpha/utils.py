@@ -56,6 +56,10 @@ def delta(df: pd.DataFrame, period: Union[int, str]) -> pd.DataFrame:
     return df.diff(period_to_int(period))
 
 
+def returns(df: pd.DataFrame, period: Union[int, str]) -> pd.DataFrame:
+    return df / delay(df, period) - 1
+
+
 def ts_min(df: pd.DataFrame, period: Union[int, str]) -> pd.DataFrame:
     return df.rolling(period_to_int(period)).min()
 
@@ -81,6 +85,10 @@ def ts_rank(df: pd.DataFrame, period: Union[int, str]) -> pd.DataFrame:
 
 def ts_sum(df: pd.DataFrame, period: Union[int, str, float]) -> pd.DataFrame:
     return df.rolling(period_to_int(period)).sum()
+
+
+def ts_mean(df: pd.DataFrame, period: Union[int, str, float]) -> pd.DataFrame:
+    return df.rolling(period_to_int(period)).mean()
 
 
 def ts_product(df: pd.DataFrame, period: Union[int, str, float]) -> pd.DataFrame:
