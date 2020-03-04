@@ -99,8 +99,8 @@ def stddev(df: pd.DataFrame, period: Union[int, str, float]) -> pd.DataFrame:
     return df.rolling(period_to_int(period)).std()
 
 
-def adv(df: pd.DataFrame, period: Union[int, str, float]) -> pd.DataFrame:
-    return df.rolling(period_to_int(period)).std()
+def adv(df: pd.DataFrame, other_df: pd.DataFrame, period: Union[int, str, float]) -> pd.DataFrame:
+    return ts_mean(df * other_df, period)
 
 
 def decay_linear(df: pd.DataFrame, period: Union[int, str, float]):
